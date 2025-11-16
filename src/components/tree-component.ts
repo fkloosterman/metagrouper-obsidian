@@ -132,8 +132,10 @@ export class TreeComponent {
     const nodeIcon = header.createSpan("tree-node-icon");
     if (node.type === "file") {
       setIcon(nodeIcon, "file");
-    } else {
-      setIcon(nodeIcon, "folder");
+    } else if (node.type === "tag") {
+      setIcon(nodeIcon, "tags");
+    } else if (node.type === "property-group") {
+      setIcon(nodeIcon, "list");
     }
 
     // Add node name
