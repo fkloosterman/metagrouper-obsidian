@@ -23,7 +23,7 @@ export class TagTreeView extends ItemView {
   }
 
   async onOpen() {
-    const container = this.containerEl.children[1];
+    const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
 
     // Create a loading indicator
@@ -77,7 +77,7 @@ export class TagTreeView extends ItemView {
     const tree = this.treeBuilder.buildFromTags();
 
     // Re-render with preserved state
-    const container = this.containerEl.children[1];
+    const container = this.containerEl.children[1] as HTMLElement;
     this.treeComponent.render(tree, container);
   }
 }
