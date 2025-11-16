@@ -6,9 +6,9 @@ import { TreeComponent } from "./components/tree-component";
 export const VIEW_TYPE_TAG_TREE = "tag-tree-view";
 
 export class TagTreeView extends ItemView {
-  private indexer: VaultIndexer;
-  private treeBuilder: TreeBuilder;
-  private treeComponent: TreeComponent;
+  private indexer!: VaultIndexer;
+  private treeBuilder!: TreeBuilder;
+  private treeComponent!: TreeComponent;
 
   constructor(leaf: WorkspaceLeaf) {
     super(leaf);
