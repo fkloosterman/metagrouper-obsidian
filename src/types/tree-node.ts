@@ -37,7 +37,7 @@ export interface TreeNode {
     propertyKey?: string;
 
     /** Property value for property nodes */
-    propertyValue: any;
+    propertyValue?: any;
   };
 
   /** UI state (managed by TreeComponent) */
