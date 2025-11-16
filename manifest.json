@@ -1,0 +1,10 @@
+{
+  "id": "tag-tree-view",
+  "name": "Tag Tree View",
+  "version": "0.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "Displays a tree view of notes based on nested tags.",
+  "author": "Fabian Kloosterman",
+  "authorUrl": "https://github.com/fkloosterman",
+  "isDesktopOnly": false
+}

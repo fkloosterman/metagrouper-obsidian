@@ -1,0 +1,29 @@
+{
+  "name": "obsidian-tag-tree-view",
+  "version": "0.0.1",
+  "description": "Obsidian plugin for visualizing nested tags.",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "rollup -c -w",
+    "build": "rollup -c",
+    "version": "node scripts/version.js",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^4.0.9",
+    "@vitest/ui": "^4.0.9",
+    "happy-dom": "^20.0.10",
+    "jsdom": "^27.2.0",
+    "obsidian": "latest",
+    "rollup": "^3.0.0",
+    "rollup-plugin-typescript2": "^0.31.1",
+    "typescript": "^5.0.0",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.9"
+  }
+}
