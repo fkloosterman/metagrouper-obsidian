@@ -10,6 +10,9 @@ export interface ViewState {
 
   /** Whether to show file nodes */
   showFiles: boolean;
+
+  /** Scroll position in the tree view (for Phase 4.1) */
+  scrollPosition?: number;
 }
 
 /**
@@ -29,4 +32,5 @@ export const DEFAULT_VIEW_STATE: ViewState = {
   expandedNodes: [],
   sortMode: "none",
   showFiles: true,
+  scrollPosition: 0,
 };

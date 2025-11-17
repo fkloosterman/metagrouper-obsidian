@@ -80,6 +80,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
             new ViewEditorModal(this.app, this.plugin, view, (edited) => {
               this.plugin.settings.savedViews[index] = edited;
               this.plugin.saveSettings();
+              this.plugin.updateViewCommands(); // Update commands for renamed/edited views
               this.display(); // Refresh settings UI
               this.plugin.refreshAllViews(edited.name);
             }).open();
@@ -96,6 +97,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               };
               this.plugin.settings.savedViews.push(duplicated);
               await this.plugin.saveSettings();
+              this.plugin.updateViewCommands(); // Update commands for new view
               this.display(); // Refresh settings UI
               new Notice(`Duplicated view: ${view.name}`);
             })
@@ -126,6 +128,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               // Remove the view
               this.plugin.settings.savedViews.splice(index, 1);
               await this.plugin.saveSettings();
+              this.plugin.updateViewCommands(); // Update commands after deletion
               this.display(); // Refresh settings UI
               new Notice(`Deleted view: ${view.name}`);
             })
@@ -141,6 +144,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
           new ViewEditorModal(this.app, this.plugin, null, (created) => {
             this.plugin.settings.savedViews.push(created);
             this.plugin.saveSettings();
+            this.plugin.updateViewCommands(); // Update commands for new view
             this.display(); // Refresh settings UI
             new Notice(`Created view: ${created.name}`);
           }).open();
@@ -282,6 +286,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
         // Add imported views
         this.plugin.settings.savedViews.push(...imported);
         await this.plugin.saveSettings();
+        this.plugin.updateViewCommands(); // Update commands for imported views
         this.display(); // Refresh settings UI
         new Notice(`Imported ${imported.length} view(s) successfully`);
       } catch (error) {

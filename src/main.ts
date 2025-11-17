@@ -8,6 +8,7 @@ import { TagTreeSettingsTab } from "./settings/settings-tab";
 
 export default class TagTreePlugin extends Plugin {
   settings!: TagTreeSettings;
+  private registeredViewCommands: Set<string> = new Set();
 
   async onload() {
     // Load settings
@@ -24,6 +25,18 @@ export default class TagTreePlugin extends Plugin {
     this.addRibbonIcon("tree-deciduous", "Open Tag Tree", () => {
       this.activateView();
     });
+
+    // Register command to open Tag Tree
+    this.addCommand({
+      id: "open-tag-tree",
+      name: "Open Tag Tree",
+      callback: () => {
+        this.activateView();
+      },
+    });
+
+    // Register dynamic commands for view switching
+    this.registerViewCommands();
   }
 
   async onunload() {
@@ -68,5 +81,88 @@ export default class TagTreePlugin extends Plugin {
         }
       }
     });
+  }
+
+  /**
+   * Register commands for switching between saved views
+   * Commands are dynamically created based on the saved views in settings
+   */
+  registerViewCommands(): void {
+    // Clear any previously registered view commands
+    this.registeredViewCommands.forEach((commandId) => {
+      // Note: Obsidian doesn't provide a way to unregister commands,
+      // but we track them for reference
+    });
+    this.registeredViewCommands.clear();
+
+    // Register a command for each saved view
+    this.settings.savedViews.forEach((view) => {
+      const commandId = this.getViewCommandId(view.name);
+
+      this.addCommand({
+        id: commandId,
+        name: `Switch to "${view.name}" view`,
+        callback: () => {
+          this.switchToView(view.name);
+        },
+      });
+
+      this.registeredViewCommands.add(commandId);
+    });
+  }
+
+  /**
+   * Generate a stable command ID from a view name
+   * Uses a sanitized version of the view name for consistent command IDs
+   */
+  private getViewCommandId(viewName: string): string {
+    // Sanitize view name to create a stable command ID
+    // This ensures keyboard shortcuts are preserved across sessions
+    const sanitized = viewName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    return `switch-to-${sanitized}`;
+  }
+
+  /**
+   * Switch all active Tag Tree views to a specific view
+   * @param viewName - The name of the view to switch to
+   */
+  private switchToView(viewName: string): void {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TAG_TREE);
+
+    if (leaves.length === 0) {
+      // No Tag Tree views open, open one and switch to the view
+      this.activateView().then(() => {
+        // After activating, switch to the requested view
+        const newLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TAG_TREE);
+        newLeaves.forEach((leaf) => {
+          const view = leaf.view as TagTreeView;
+          if (view && typeof view.switchToView === "function") {
+            view.switchToView(viewName);
+          }
+        });
+      });
+    } else {
+      // Switch all existing views
+      leaves.forEach((leaf) => {
+        const view = leaf.view as TagTreeView;
+        if (view && typeof view.switchToView === "function") {
+          view.switchToView(viewName);
+        }
+      });
+    }
+  }
+
+  /**
+   * Re-register view commands when settings change
+   * This should be called after adding/removing/renaming views in settings
+   */
+  updateViewCommands(): void {
+    // Note: Obsidian doesn't provide a way to unregister commands,
+    // so we just register new ones. Deleted view commands will remain
+    // but won't do anything if the view doesn't exist.
+    this.registerViewCommands();
   }
 }
