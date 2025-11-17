@@ -1,7 +1,13 @@
 import { TFile } from "obsidian";
 import { VaultIndexer } from "../indexer/vault-indexer";
-import { TreeNode, createTagNode, createFileNode } from "../types/tree-node";
+import {
+  TreeNode,
+  createTagNode,
+  createFileNode,
+  createPropertyGroupNode,
+} from "../types/tree-node";
 import { SortMode } from "../types/view-state";
+import { HierarchyConfig, HierarchyLevel } from "../types/hierarchy-config";
 
 /**
  * TreeBuilder - Transforms flat tag index into hierarchical tree structure
@@ -232,5 +238,280 @@ export class TreeBuilder {
     for (const child of node.children) {
       this.sortTreeRecursive(child, sortMode);
     }
+  }
+
+  /**
+   * Build a tree from a hierarchy configuration
+   * Supports multi-level grouping by tags and properties
+   *
+   * @param config - Hierarchy configuration defining the tree structure
+   * @returns Root tree node with hierarchical structure
+   */
+  buildFromHierarchy(config: HierarchyConfig): TreeNode {
+    // Get initial file set (optionally filtered by root tag)
+    const allFiles = this.indexer.getAllFiles();
+    let files: TFile[];
+
+    if (config.rootTag) {
+      // Filter files that have the root tag
+      const normalizedRootTag = config.rootTag.toLowerCase().replace(/^#/, "");
+      files = allFiles.filter((file) => {
+        const tags = this.indexer.getFileTags(file);
+        return Array.from(tags).some(
+          (tag) =>
+            tag === normalizedRootTag || tag.startsWith(normalizedRootTag + "/")
+        );
+      });
+    } else {
+      files = allFiles;
+    }
+
+    // Build tree recursively through hierarchy levels
+    const root = this.buildLevelRecursive(files, config.levels, 0);
+
+    // Apply sorting according to config
+    const sortMode = config.sortMode || "alpha-asc";
+    this.sortTreeRecursive(root, sortMode);
+
+    // Calculate aggregate file counts
+    this.calculateFileCounts(root);
+
+    return root;
+  }
+
+  /**
+   * Recursively build tree levels according to hierarchy configuration
+   *
+   * @param files - Files to process at this level
+   * @param levels - Remaining hierarchy levels to process
+   * @param depth - Current depth in the tree
+   * @param parentTagPath - Tag path from parent tag level (for nested tag grouping)
+   * @returns Tree node representing this level
+   */
+  private buildLevelRecursive(
+    files: TFile[],
+    levels: HierarchyLevel[],
+    depth: number,
+    parentTagPath?: string
+  ): TreeNode {
+    // Base case: no more levels or no files
+    if (depth >= levels.length || files.length === 0) {
+      const fileNodes = files.map((f) => createFileNode(f, depth));
+      return {
+        id: "root",
+        name: "Root",
+        type: "tag",
+        children: fileNodes,
+        depth,
+        files: [],
+        fileCount: files.length,
+      };
+    }
+
+    const level = levels[depth];
+
+    // Group files by this level's criterion
+    const groups = this.groupFilesByLevel(files, level, parentTagPath);
+
+    // Create nodes for each group
+    const children: TreeNode[] = [];
+
+    for (const [groupKey, groupFiles] of groups.entries()) {
+      // Create the group node
+      let node: TreeNode;
+      if (level.type === "tag") {
+        node = createTagNode(groupKey, [], depth);
+      } else {
+        node = createPropertyGroupNode(level.key, groupKey, [], depth);
+      }
+
+      // Separate files: those that match next level vs those that end here
+      const filesForNextLevel: TFile[] = [];
+      const filesForThisLevel: TFile[] = [];
+
+      if (depth + 1 < levels.length) {
+        const nextLevel = levels[depth + 1];
+        // Determine parent tag path for checking next level
+        const nextParentTagPath =
+          level.type === "tag" ? groupKey : parentTagPath;
+
+        for (const file of groupFiles) {
+          if (this.fileMatchesLevel(file, nextLevel, nextParentTagPath)) {
+            filesForNextLevel.push(file);
+          } else {
+            filesForThisLevel.push(file);
+          }
+        }
+      } else {
+        // No more levels, all files end here
+        filesForThisLevel.push(...groupFiles);
+      }
+
+      // Add file nodes for files that end at this level
+      for (const file of filesForThisLevel) {
+        node.children.push(createFileNode(file, depth + 1));
+      }
+
+      // Recursively build next level for files that continue
+      if (filesForNextLevel.length > 0) {
+        // Determine parent tag path for next level
+        const newParentTagPath =
+          level.type === "tag" ? groupKey : parentTagPath;
+
+        const childTreeNode = this.buildLevelRecursive(
+          filesForNextLevel,
+          levels,
+          depth + 1,
+          newParentTagPath
+        );
+
+        // Add children from recursive call
+        node.children.push(...childTreeNode.children);
+      }
+
+      children.push(node);
+    }
+
+    return {
+      id: "root",
+      name: "Root",
+      type: "tag",
+      children,
+      depth,
+      files: [],
+      fileCount: 0,
+    };
+  }
+
+  /**
+   * Group files according to a hierarchy level's criterion
+   *
+   * @param files - Files to group
+   * @param level - Hierarchy level defining grouping criterion
+   * @param parentTagPath - Parent tag path for nested tag grouping
+   * @returns Map of group key to files in that group
+   */
+  private groupFilesByLevel(
+    files: TFile[],
+    level: HierarchyLevel,
+    parentTagPath?: string
+  ): Map<string, TFile[]> {
+    const groups = new Map<string, TFile[]>();
+
+    for (const file of files) {
+      if (level.type === "property") {
+        // Group by property value
+        const props = this.indexer.getFileProperties(file);
+        const value = props[level.key];
+
+        if (value !== undefined) {
+          const groupKey = String(value);
+          if (!groups.has(groupKey)) {
+            groups.set(groupKey, []);
+          }
+          groups.get(groupKey)!.push(file);
+        }
+        // Files without this property are not included (don't match this level)
+      } else if (level.type === "tag") {
+        // Group by matching tags
+        const matchingTags = this.findMatchingTags(
+          file,
+          level.key,
+          parentTagPath
+        );
+
+        // File can appear in multiple groups if it has multiple matching tags
+        for (const tag of matchingTags) {
+          if (!groups.has(tag)) {
+            groups.set(tag, []);
+          }
+          groups.get(tag)!.push(file);
+        }
+      }
+    }
+
+    return groups;
+  }
+
+  /**
+   * Find tags that match the level's pattern for a given file
+   * Handles nested tag hierarchies by finding immediate children of parent tag path
+   *
+   * @param file - File to find matching tags for
+   * @param tagKey - Tag key/prefix to match
+   * @param parentTagPath - Parent tag path for nested matching
+   * @returns Array of matching tag paths
+   */
+  private findMatchingTags(
+    file: TFile,
+    tagKey: string,
+    parentTagPath?: string
+  ): string[] {
+    const fileTags = this.indexer.getFileTags(file);
+    const matchingTags: string[] = [];
+
+    // Determine the base path to look under
+    let basePath: string;
+    if (parentTagPath && parentTagPath !== "") {
+      // We're within a parent tag group, look for children of parent
+      basePath = parentTagPath;
+    } else if (tagKey && tagKey !== "") {
+      // Top level for this tag key
+      basePath = tagKey;
+    } else {
+      // Empty key means match all tags
+      basePath = "";
+    }
+
+    for (const tag of fileTags) {
+      let matchingTag: string | null = null;
+
+      if (basePath === "") {
+        // Match any tag (for empty key at top level)
+        matchingTag = tag;
+      } else if (tag === basePath) {
+        // Exact match with base path
+        matchingTag = basePath;
+      } else if (tag.startsWith(basePath + "/")) {
+        // Tag is under basePath, find the immediate child level
+        const remainder = tag.substring(basePath.length + 1);
+        const segments = remainder.split("/");
+        // Use only the first segment to get immediate child
+        matchingTag = basePath + "/" + segments[0];
+      }
+
+      if (matchingTag && !matchingTags.includes(matchingTag)) {
+        matchingTags.push(matchingTag);
+      }
+    }
+
+    return matchingTags;
+  }
+
+  /**
+   * Check if a file matches a hierarchy level's criterion
+   *
+   * @param file - File to check
+   * @param level - Hierarchy level to check against
+   * @param parentTagPath - Parent tag path for nested tag matching
+   * @returns True if file matches the level's criterion
+   */
+  private fileMatchesLevel(
+    file: TFile,
+    level: HierarchyLevel,
+    parentTagPath?: string
+  ): boolean {
+    if (level.type === "property") {
+      const props = this.indexer.getFileProperties(file);
+      return props[level.key] !== undefined;
+    } else if (level.type === "tag") {
+      const matchingTags = this.findMatchingTags(
+        file,
+        level.key,
+        parentTagPath
+      );
+      return matchingTags.length > 0;
+    }
+    return false;
   }
 }

@@ -391,6 +391,13 @@ export class VaultIndexer extends Events {
   }
 
   /**
+   * Get all indexed files
+   */
+  getAllFiles(): TFile[] {
+    return Array.from(this.fileToTags.keys());
+  }
+
+  /**
    * Refresh the entire index (full re-index)
    */
   async refresh(): Promise<void> {
