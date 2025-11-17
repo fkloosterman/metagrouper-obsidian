@@ -314,8 +314,8 @@ describe("VaultIndexer", () => {
       app.metadataCache.setFileCache(file, newMetadata);
       app.metadataCache.trigger("changed", file);
 
-      // Wait a bit for async update
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Wait for debounced update (VaultIndexer uses 300ms debounce)
+      await new Promise((resolve) => setTimeout(resolve, 350));
 
       const tags = indexer.getAllTags();
       expect(tags).toContain("updated");
@@ -346,8 +346,8 @@ describe("VaultIndexer", () => {
       // Simulate file update
       app.metadataCache.trigger("changed", file);
 
-      // Wait a bit for async update
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Wait for debounced update (VaultIndexer uses 300ms debounce)
+      await new Promise((resolve) => setTimeout(resolve, 350));
 
       expect(listener).toHaveBeenCalled();
     });
