@@ -452,12 +452,12 @@ export class TreeBuilder {
 
     // Determine the base path to look under
     let basePath: string;
-    if (parentTagPath && parentTagPath !== "") {
-      // We're within a parent tag group, look for children of parent
-      basePath = parentTagPath;
-    } else if (tagKey && tagKey !== "") {
-      // Top level for this tag key
+    if (tagKey && tagKey !== "") {
+      // Specific tag key provided - look for tags starting with this key
       basePath = tagKey;
+    } else if (parentTagPath && parentTagPath !== "") {
+      // No specific key, but within a parent tag group - look for children of parent
+      basePath = parentTagPath;
     } else {
       // Empty key means match all tags
       basePath = "";
