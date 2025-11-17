@@ -272,7 +272,13 @@ export class TreeBuilder {
     }
 
     // Build tree recursively through hierarchy levels
-    const root = this.buildLevelRecursive(files, config.levels, 0);
+    const root = this.buildLevelRecursive(
+      files,
+      config.levels,
+      0,
+      undefined,
+      config.showPartialMatches
+    );
 
     // Apply sorting according to config
     const sortMode = config.sortMode || "alpha-asc";
@@ -291,13 +297,15 @@ export class TreeBuilder {
    * @param levels - Remaining hierarchy levels to process
    * @param depth - Current depth in the tree
    * @param parentTagPath - Tag path from parent tag level (for nested tag grouping)
+   * @param showPartialMatches - Whether to show files at intermediate levels
    * @returns Tree node representing this level
    */
   private buildLevelRecursive(
     files: TFile[],
     levels: HierarchyLevel[],
     depth: number,
-    parentTagPath?: string
+    parentTagPath?: string,
+    showPartialMatches: boolean = false
   ): TreeNode {
     // Base case: no more levels or no files
     if (depth >= levels.length || files.length === 0) {
@@ -328,7 +336,8 @@ export class TreeBuilder {
           depth,
           tagLevel,
           parentTagPath,
-          0 // Start at sub-depth 0
+          0, // Start at sub-depth 0
+          showPartialMatches
         );
       }
     }
@@ -371,8 +380,11 @@ export class TreeBuilder {
       }
 
       // Add file nodes for files that end at this level
-      for (const file of filesForThisLevel) {
-        node.children.push(createFileNode(file, depth + 1));
+      // Only add if showPartialMatches=true OR this is the last hierarchy level
+      if (showPartialMatches || depth + 1 >= levels.length) {
+        for (const file of filesForThisLevel) {
+          node.children.push(createFileNode(file, depth + 1));
+        }
       }
 
       // Recursively build next level for files that continue
@@ -385,7 +397,8 @@ export class TreeBuilder {
           filesForNextLevel,
           levels,
           depth + 1,
-          newParentTagPath
+          newParentTagPath,
+          showPartialMatches
         );
 
         // Add children from recursive call
@@ -415,6 +428,7 @@ export class TreeBuilder {
    * @param tagLevel - The tag level being processed
    * @param parentTagPath - Parent tag path for nested grouping
    * @param subDepth - Current sub-depth within this tag level (0 to tagDepth-1)
+   * @param showPartialMatches - Whether to show files at intermediate levels
    * @returns Tree node with multi-level tag structure
    */
   private buildMultiDepthTagLevel(
@@ -423,7 +437,8 @@ export class TreeBuilder {
     hierarchyDepth: number,
     tagLevel: TagHierarchyLevel,
     parentTagPath: string | undefined,
-    subDepth: number
+    subDepth: number,
+    showPartialMatches: boolean = false
   ): TreeNode {
     const tagDepth = tagLevel.depth || 1;
     const treeDepth = hierarchyDepth;
@@ -434,7 +449,8 @@ export class TreeBuilder {
         files,
         levels,
         hierarchyDepth + 1,
-        parentTagPath
+        parentTagPath,
+        showPartialMatches
       );
     }
 
@@ -475,7 +491,8 @@ export class TreeBuilder {
             tagLevel,
             groupKey,
             subDepth,
-            node
+            node,
+            showPartialMatches
           );
         } else {
           // Non-virtual mode: continue directly to next tag sub-depth
@@ -485,7 +502,8 @@ export class TreeBuilder {
             hierarchyDepth,
             tagLevel,
             groupKey,
-            subDepth + 1
+            subDepth + 1,
+            showPartialMatches
           );
 
           node.children.push(...childTreeNode.children);
@@ -512,8 +530,11 @@ export class TreeBuilder {
         }
 
         // Add file nodes for files that end here
-        for (const file of filesForThisLevel) {
-          node.children.push(createFileNode(file, treeDepth + subDepth + 1));
+        // Only add if showPartialMatches=true OR this is the last hierarchy level
+        if (showPartialMatches || hierarchyDepth + 1 >= levels.length) {
+          for (const file of filesForThisLevel) {
+            node.children.push(createFileNode(file, treeDepth + subDepth + 1));
+          }
         }
 
         // Recursively build next hierarchy level for files that continue
@@ -522,7 +543,8 @@ export class TreeBuilder {
             filesForNextLevel,
             levels,
             hierarchyDepth + 1,
-            groupKey
+            groupKey,
+            showPartialMatches
           );
 
           node.children.push(...childTreeNode.children);
@@ -554,6 +576,7 @@ export class TreeBuilder {
    * @param currentTagPath - Current tag path
    * @param subDepth - Current sub-depth within tag level
    * @param parentNode - Parent node to add children to
+   * @param showPartialMatches - Whether to show files at intermediate levels
    */
   private buildVirtualTagLevel(
     files: TFile[],
@@ -562,7 +585,8 @@ export class TreeBuilder {
     tagLevel: TagHierarchyLevel,
     currentTagPath: string,
     subDepth: number,
-    parentNode: TreeNode
+    parentNode: TreeNode,
+    showPartialMatches: boolean = false
   ): void {
     const nextLevel = levels[hierarchyDepth + 1];
     const currentTreeDepth = hierarchyDepth + subDepth;
@@ -587,7 +611,8 @@ export class TreeBuilder {
         hierarchyDepth,
         tagLevel,
         currentTagPath,
-        subDepth + 1
+        subDepth + 1,
+        showPartialMatches
       );
 
       parentNode.children.push(...childTreeNode.children);
@@ -623,7 +648,8 @@ export class TreeBuilder {
           hierarchyDepth,
           tagLevel,
           currentTagPath,
-          subDepth + 1
+          subDepth + 1,
+          showPartialMatches
         );
 
         nextLevelNode.children.push(...childTreeNode.children);
