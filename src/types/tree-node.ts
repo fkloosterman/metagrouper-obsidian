@@ -59,15 +59,21 @@ export function createTagNode(
   const segments = tagPath.split("/");
   let name: string;
 
-  if (options?.label) {
-    // Use custom label if provided
-    name = options.label;
-  } else if (options?.showFullPath) {
+  // Determine the tag portion to display
+  let tagName: string;
+  if (options?.showFullPath) {
     // Show full tag path
-    name = tagPath;
+    tagName = tagPath;
   } else {
     // Default: show last segment only
-    name = segments[segments.length - 1];
+    tagName = segments[segments.length - 1];
+  }
+
+  // Prepend label if provided and not empty
+  if (options?.label && options.label.trim() !== "") {
+    name = `${options.label}: ${tagName}`;
+  } else {
+    name = tagName;
   }
 
   return {
@@ -96,16 +102,18 @@ export function createPropertyGroupNode(
   }
 ): TreeNode {
   let name: string;
+  const valueName = String(propertyValue);
 
-  if (options?.label) {
-    // Use custom label if provided
-    name = options.label;
-  } else if (options?.showPropertyName) {
-    // Prepend property name
-    name = `${propertyKey} = ${String(propertyValue)}`;
+  // Determine if we should prepend property name
+  if (options?.showPropertyName) {
+    // Use label if provided and not empty, otherwise use property key
+    const prefix = (options?.label && options.label.trim() !== "")
+      ? options.label
+      : propertyKey;
+    name = `${prefix} = ${valueName}`;
   } else {
-    // Default: show value only
-    name = String(propertyValue);
+    // Just show value
+    name = valueName;
   }
 
   return {
