@@ -465,17 +465,31 @@ export class TreeBuilder {
 
       // Check if there are more sub-depths to process
       if (subDepth + 1 < tagDepth) {
-        // Recursively build next sub-depth
-        const childTreeNode = this.buildMultiDepthTagLevel(
-          groupFiles,
-          levels,
-          hierarchyDepth,
-          tagLevel,
-          groupKey,
-          subDepth + 1
-        );
+        // Not at the final tag depth yet
+        if (tagLevel.virtual && hierarchyDepth + 1 < levels.length) {
+          // Virtual mode: insert next hierarchy level before continuing with tag sub-depths
+          this.buildVirtualTagLevel(
+            groupFiles,
+            levels,
+            hierarchyDepth,
+            tagLevel,
+            groupKey,
+            subDepth,
+            node
+          );
+        } else {
+          // Non-virtual mode: continue directly to next tag sub-depth
+          const childTreeNode = this.buildMultiDepthTagLevel(
+            groupFiles,
+            levels,
+            hierarchyDepth,
+            tagLevel,
+            groupKey,
+            subDepth + 1
+          );
 
-        node.children.push(...childTreeNode.children);
+          node.children.push(...childTreeNode.children);
+        }
       } else {
         // Last sub-depth of this tag level
         // Separate files: those that match next hierarchy level vs those that end here
@@ -527,6 +541,95 @@ export class TreeBuilder {
       files: [],
       fileCount: 0,
     };
+  }
+
+  /**
+   * Build virtual tag level structure
+   * Inserts next hierarchy level between intermediate tag levels
+   *
+   * @param files - Files to process
+   * @param levels - All hierarchy levels
+   * @param hierarchyDepth - Current hierarchy level index
+   * @param tagLevel - The tag level being processed
+   * @param currentTagPath - Current tag path
+   * @param subDepth - Current sub-depth within tag level
+   * @param parentNode - Parent node to add children to
+   */
+  private buildVirtualTagLevel(
+    files: TFile[],
+    levels: HierarchyLevel[],
+    hierarchyDepth: number,
+    tagLevel: TagHierarchyLevel,
+    currentTagPath: string,
+    subDepth: number,
+    parentNode: TreeNode
+  ): void {
+    const nextLevel = levels[hierarchyDepth + 1];
+    const currentTreeDepth = hierarchyDepth + subDepth;
+
+    // Separate files by whether they match the next hierarchy level
+    const filesMatchingNext: TFile[] = [];
+    const filesNotMatching: TFile[] = [];
+
+    for (const file of files) {
+      if (this.fileMatchesLevel(file, nextLevel, currentTagPath)) {
+        filesMatchingNext.push(file);
+      } else {
+        filesNotMatching.push(file);
+      }
+    }
+
+    // Files that don't match next level: continue directly with next tag sub-depth
+    if (filesNotMatching.length > 0) {
+      const childTreeNode = this.buildMultiDepthTagLevel(
+        filesNotMatching,
+        levels,
+        hierarchyDepth,
+        tagLevel,
+        currentTagPath,
+        subDepth + 1
+      );
+
+      parentNode.children.push(...childTreeNode.children);
+    }
+
+    // Files that match next level: insert next hierarchy level, then continue with tag sub-depths
+    if (filesMatchingNext.length > 0) {
+      // Group files by the next hierarchy level
+      const groups = this.groupFilesByLevel(
+        filesMatchingNext,
+        nextLevel,
+        currentTagPath
+      );
+
+      for (const [groupKey, groupFiles] of groups.entries()) {
+        // Create node for next hierarchy level
+        let nextLevelNode: TreeNode;
+        if (nextLevel.type === "tag") {
+          nextLevelNode = createTagNode(groupKey, [], currentTreeDepth + 1);
+        } else {
+          nextLevelNode = createPropertyGroupNode(
+            nextLevel.key,
+            groupKey,
+            [],
+            currentTreeDepth + 1
+          );
+        }
+
+        // After inserting next level, continue with remaining tag sub-depths
+        const childTreeNode = this.buildMultiDepthTagLevel(
+          groupFiles,
+          levels,
+          hierarchyDepth,
+          tagLevel,
+          currentTagPath,
+          subDepth + 1
+        );
+
+        nextLevelNode.children.push(...childTreeNode.children);
+        parentNode.children.push(nextLevelNode);
+      }
+    }
   }
 
   /**
