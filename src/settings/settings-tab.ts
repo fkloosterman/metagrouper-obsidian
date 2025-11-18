@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Modal, Notice } from "obsidian";
+import { App, PluginSettingTab, Setting, Modal, Notice, setIcon, MarkdownRenderer } from "obsidian";
 import type TagTreePlugin from "../main";
 import {
   HierarchyConfig,
@@ -14,6 +14,103 @@ import {
 } from "../types/hierarchy-config";
 import { SortMode, FileSortMode } from "../types/view-state";
 import { DEFAULT_LEVEL_COLORS } from "./plugin-settings";
+import { KOFI_SVG } from "../assets/kofi-logo";
+
+/**
+ * Modal to display the changelog
+ */
+class ChangelogModal extends Modal {
+  private plugin: TagTreePlugin;
+
+  constructor(app: App, plugin: TagTreePlugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+
+  async onOpen() {
+    const { contentEl, titleEl } = this;
+    titleEl.setText(`What's new in Tag Tree View v${this.plugin.manifest.version}`);
+
+    // Create scrollable content container
+    const scrollContainer = contentEl.createDiv({
+      cls: "tag-tree-changelog-content"
+    });
+    scrollContainer.style.maxHeight = "60vh";
+    scrollContainer.style.overflowY = "auto";
+    scrollContainer.style.marginBottom = "var(--size-4-4)";
+    scrollContainer.style.paddingRight = "var(--size-4-2)";
+
+    // Load and render changelog
+    try {
+      const adapter = this.app.vault.adapter;
+      const changelogPath = `${this.plugin.manifest.dir}/CHANGELOG.md`;
+      const changelogContent = await adapter.read(changelogPath);
+
+      // Render markdown
+      await MarkdownRenderer.render(
+        this.app,
+        changelogContent,
+        scrollContainer,
+        "",
+        this.plugin
+      );
+    } catch (error) {
+      scrollContainer.createEl("p", {
+        text: "Could not load changelog.",
+        cls: "mod-warning"
+      });
+      console.error("Failed to load changelog:", error);
+    }
+
+    // Support section
+    const supportSection = contentEl.createDiv({
+      cls: "tag-tree-changelog-footer"
+    });
+    supportSection.style.borderTop = "1px solid var(--background-modifier-border)";
+    supportSection.style.paddingTop = "var(--size-4-3)";
+    supportSection.style.marginTop = "var(--size-4-3)";
+
+    supportSection.createEl("p", {
+      text: "If you find Tag Tree View helpful, please consider supporting its development."
+    });
+
+    // Buttons container
+    const buttonsContainer = supportSection.createDiv();
+    buttonsContainer.style.display = "flex";
+    buttonsContainer.style.gap = "var(--size-4-2)";
+    buttonsContainer.style.marginTop = "var(--size-4-2)";
+
+    // Buy me a coffee button
+    const kofiButton = buttonsContainer.createEl("button", {
+      cls: "mod-cta"
+    });
+    kofiButton.style.display = "flex";
+    kofiButton.style.alignItems = "center";
+    kofiButton.style.gap = "var(--size-2-2)";
+
+    const kofiIcon = kofiButton.createDiv();
+    kofiIcon.innerHTML = KOFI_SVG;
+    kofiIcon.style.display = "flex";
+    kofiIcon.style.alignItems = "center";
+
+    kofiButton.createSpan({ text: "Buy me a coffee" });
+    kofiButton.addEventListener("click", () => {
+      window.open("https://ko-fi.com/fabiankloosterman", "_blank");
+    });
+
+    // Thanks button
+    const thanksButton = buttonsContainer.createEl("button");
+    thanksButton.setText("Thanks!");
+    thanksButton.addEventListener("click", () => {
+      this.close();
+    });
+  }
+
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
 
 /**
  * Settings tab for Tag Tree plugin
@@ -31,12 +128,21 @@ export class TagTreeSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Tag Tree Settings" });
+    // Main header
+    new Setting(containerEl)
+      .setHeading()
+      .setName("Tag Tree View Settings");
 
-    // Default view selector
-    this.renderDefaultViewSelector(containerEl);
+    // What's new section
+    this.renderWhatsNew(containerEl);
 
-    // Saved views list
+    // Documentation section
+    this.renderDocumentation(containerEl);
+
+    // Support development section
+    this.renderSupportDevelopment(containerEl);
+
+    // Saved views list (includes default indicator)
     this.renderSavedViewsList(containerEl);
 
     // Import/Export section
@@ -44,54 +150,144 @@ export class TagTreeSettingsTab extends PluginSettingTab {
   }
 
   /**
-   * Render the default view selector
+   * Render What's new section
    */
-  private renderDefaultViewSelector(containerEl: HTMLElement): void {
+  private renderWhatsNew(containerEl: HTMLElement): void {
     new Setting(containerEl)
-      .setName("Default view")
-      .setDesc("The view to load when opening a new Tag Tree sidebar")
-      .addDropdown((dropdown) => {
-        // Add all saved views to dropdown
-        this.plugin.settings.savedViews.forEach((view) => {
-          dropdown.addOption(view.name, view.name);
-        });
+      .setName(`What's new in Tag Tree View v${this.plugin.manifest.version}`)
+      .setDesc("See the latest features and improvements")
+      .addButton((button) =>
+        button
+          .setButtonText("View changelog")
+          .onClick(() => {
+            new ChangelogModal(this.app, this.plugin).open();
+          })
+      );
+  }
 
-        dropdown
-          .setValue(this.plugin.settings.defaultViewName)
-          .onChange(async (value) => {
-            this.plugin.settings.defaultViewName = value;
-            await this.plugin.saveSettings();
-          });
-      });
+  /**
+   * Render Documentation section
+   */
+  private renderDocumentation(containerEl: HTMLElement): void {
+    new Setting(containerEl)
+      .setName("Documentation")
+      .setDesc("Learn more about using Tag Tree View")
+      .addButton((button) =>
+        button
+          .setButtonText("View documentation")
+          .onClick(() => {
+            window.open("https://fkloosterman.github.io/tag-tree-obsidian/", "_blank");
+          })
+      );
+  }
+
+  /**
+   * Render Support development section
+   */
+  private renderSupportDevelopment(containerEl: HTMLElement): void {
+    const setting = new Setting(containerEl)
+      .setName("Support development")
+      .setDesc("If you find Tag Tree View helpful, please consider supporting its development.");
+
+    // Create custom button container in the control section
+    const buttonContainer = setting.controlEl.createDiv({
+      cls: "tag-tree-support-buttons"
+    });
+    buttonContainer.style.display = "flex";
+    buttonContainer.style.gap = "var(--size-4-2)";
+    buttonContainer.style.alignItems = "center";
+
+    // Sponsor button with filled heart icon (light background, red heart)
+    const sponsorButton = buttonContainer.createEl("button");
+    sponsorButton.style.display = "flex";
+    sponsorButton.style.alignItems = "center";
+    sponsorButton.style.gap = "var(--size-2-2)";
+    sponsorButton.style.backgroundColor = "var(--background-secondary)";
+    sponsorButton.style.padding = "var(--size-2-3) var(--size-4-2)";
+    sponsorButton.style.borderRadius = "var(--radius-s)";
+    sponsorButton.style.border = "1px solid var(--background-modifier-border)";
+    sponsorButton.style.cursor = "pointer";
+
+    const heartIcon = sponsorButton.createSpan();
+    heartIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#dc2626" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+    heartIcon.style.display = "flex";
+    heartIcon.style.alignItems = "center";
+
+    sponsorButton.createSpan({ text: "Sponsor" });
+    sponsorButton.addEventListener("click", () => {
+      window.open("https://github.com/sponsors/fkloosterman", "_blank");
+    });
+
+    // Buy me a coffee button with ko-fi logo and ko-fi blue background
+    const kofiButton = buttonContainer.createEl("button");
+    kofiButton.style.display = "flex";
+    kofiButton.style.alignItems = "center";
+    kofiButton.style.gap = "var(--size-2-2)";
+    kofiButton.style.backgroundColor = "#13C3FF"; // Ko-fi brand blue
+    kofiButton.style.color = "white";
+    kofiButton.style.padding = "var(--size-2-3) var(--size-4-2)";
+    kofiButton.style.borderRadius = "var(--radius-s)";
+    kofiButton.style.border = "none";
+    kofiButton.style.cursor = "pointer";
+    kofiButton.style.fontWeight = "500";
+
+    const kofiIcon = kofiButton.createDiv();
+    kofiIcon.innerHTML = KOFI_SVG;
+    kofiIcon.style.display = "flex";
+    kofiIcon.style.alignItems = "center";
+
+    kofiButton.createSpan({ text: "Buy me a coffee" });
+    kofiButton.addEventListener("click", () => {
+      window.open("https://ko-fi.com/fabiankloosterman", "_blank");
+    });
   }
 
   /**
    * Render the list of saved views
    */
   private renderSavedViewsList(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: "Saved Views" });
+    new Setting(containerEl).setHeading().setName("Saved Views");
 
-    const listContainer = containerEl.createDiv("tag-tree-views-list");
+    new Setting(containerEl)
+      .setName("")
+      .setDesc("Click the star to set a view as default. Default view cannot be deleted.");
+
+    const listContainer = containerEl.createDiv();
 
     this.plugin.settings.savedViews.forEach((view, index) => {
+      const isDefault = view.name === this.plugin.settings.defaultViewName;
+
       const viewSetting = new Setting(listContainer)
         .setName(view.name)
         .setDesc(this.getViewDescription(view))
-        .addButton((button) =>
-          button.setButtonText("Edit").onClick(() => {
-            new ViewEditorModal(this.app, this.plugin, view, (edited) => {
-              this.plugin.settings.savedViews[index] = edited;
-              this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands for renamed/edited views
-              this.display(); // Refresh settings UI
-              this.plugin.refreshAllViews(edited.name);
-            }).open();
-          })
-        )
-        .addButton((button) =>
+        .addExtraButton((button) =>
           button
-            .setButtonText("Duplicate")
-            .setWarning()
+            .setIcon(isDefault ? "star" : "star-off")
+            .setTooltip(isDefault ? "Default view" : "Set as default view")
+            .onClick(async () => {
+              this.plugin.settings.defaultViewName = view.name;
+              await this.plugin.saveSettings();
+              this.display(); // Refresh to update star icons
+            })
+        )
+        .addExtraButton((button) =>
+          button
+            .setIcon("pencil")
+            .setTooltip("Edit view")
+            .onClick(() => {
+              new ViewEditorModal(this.app, this.plugin, view, (edited) => {
+                this.plugin.settings.savedViews[index] = edited;
+                this.plugin.saveSettings();
+                this.plugin.updateViewCommands();
+                this.display();
+                this.plugin.refreshAllViews(edited.name);
+              }).open();
+            })
+        )
+        .addExtraButton((button) =>
+          button
+            .setIcon("copy")
+            .setTooltip("Duplicate view")
             .onClick(async () => {
               const duplicated = {
                 ...view,
@@ -99,30 +295,17 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               };
               this.plugin.settings.savedViews.push(duplicated);
               await this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands for new view
-              this.display(); // Refresh settings UI
+              this.plugin.updateViewCommands();
+              this.display();
               new Notice(`Duplicated view: ${view.name}`);
             })
         )
-        .addButton((button) =>
+        .addExtraButton((button) =>
           button
-            .setButtonText("Delete")
-            .setWarning()
+            .setIcon("trash")
+            .setTooltip(isDefault ? "Cannot delete default view" : "Delete view")
+            .setDisabled(isDefault || this.plugin.settings.savedViews.length <= 1)
             .onClick(async () => {
-              // Prevent deleting the last view
-              if (this.plugin.settings.savedViews.length <= 1) {
-                new Notice("Cannot delete the last view");
-                return;
-              }
-
-              // Prevent deleting the default view
-              if (view.name === this.plugin.settings.defaultViewName) {
-                new Notice(
-                  "Cannot delete the default view. Please set a different default view first."
-                );
-                return;
-              }
-
               // Confirm deletion
               const confirmed = await this.confirmDelete(view.name);
               if (!confirmed) return;
@@ -130,8 +313,8 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               // Remove the view
               this.plugin.settings.savedViews.splice(index, 1);
               await this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands after deletion
-              this.display(); // Refresh settings UI
+              this.plugin.updateViewCommands();
+              this.display();
               new Notice(`Deleted view: ${view.name}`);
             })
         );
@@ -158,7 +341,7 @@ export class TagTreeSettingsTab extends PluginSettingTab {
    * Render import/export section
    */
   private renderImportExport(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: "Import/Export" });
+    new Setting(containerEl).setHeading().setName("Import/Export");
 
     new Setting(containerEl)
       .setName("Export all views")
@@ -312,6 +495,21 @@ class ViewEditorModal extends Modal {
   // Working copy of the view being edited
   private workingView: HierarchyConfig;
 
+  // Track collapse state to preserve across re-renders
+  private collapseState: {
+    basic: boolean;
+    sorting: boolean;
+    colors: boolean;
+    levels: boolean;
+    levelItems: Map<number, boolean>;
+  } = {
+    basic: true,
+    sorting: true,
+    colors: false,
+    levels: true,
+    levelItems: new Map(),
+  };
+
   constructor(
     app: App,
     plugin: TagTreePlugin,
@@ -359,7 +557,7 @@ class ViewEditorModal extends Modal {
   private renderEditor(containerEl: HTMLElement): void {
     containerEl.empty();
 
-    // View name
+    // View name (at the top, outside of sections)
     new Setting(containerEl)
       .setName("View name")
       .setDesc("Unique name for this view")
@@ -372,8 +570,16 @@ class ViewEditorModal extends Modal {
           })
       );
 
+    // Filter Options Section (collapsible)
+    const filterSection = this.createCollapsibleSection(
+      containerEl,
+      "Filter Options",
+      "basic",
+      true
+    );
+
     // Root tag filter (optional)
-    new Setting(containerEl)
+    new Setting(filterSection)
       .setName("Root tag filter")
       .setDesc(
         "Optional: Only include files with this tag (e.g., 'project' for #project)"
@@ -387,8 +593,16 @@ class ViewEditorModal extends Modal {
           })
       );
 
+    // Sorting and Display Options Section (collapsible)
+    const sortingSection = this.createCollapsibleSection(
+      containerEl,
+      "Sorting & Display Options",
+      "sorting",
+      true
+    );
+
     // Default node sort mode
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default node sort mode")
       .setDesc("How to sort tag and property nodes in the tree")
       .addDropdown((dropdown) => {
@@ -405,7 +619,7 @@ class ViewEditorModal extends Modal {
       });
 
     // Default file sort mode
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default file sort mode")
       .setDesc("How to sort files within each group")
       .addDropdown((dropdown) => {
@@ -426,7 +640,7 @@ class ViewEditorModal extends Modal {
       });
 
     // Default expanded depth
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default expansion depth")
       .setDesc("How many levels to expand by default (-1 for all)")
       .addText((text) =>
@@ -442,7 +656,7 @@ class ViewEditorModal extends Modal {
       );
 
     // Show partial matches
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Show files with partial matches")
       .setDesc("Show files at the deepest level they match (even if they don't match all levels)")
       .addToggle((toggle) =>
@@ -453,12 +667,16 @@ class ViewEditorModal extends Modal {
           })
       );
 
-    // Level colors section
-    containerEl.createEl("h3", { text: "Hierarchy Level Colors" });
+    // Level colors section (collapsible)
+    const colorsSection = this.createCollapsibleSection(
+      containerEl,
+      "Hierarchy Level Colors",
+      "colors",
+      false
+    );
 
-    // Enable level colors
-    // Color mode dropdown (replaces enable toggle + mode dropdown)
-    new Setting(containerEl)
+    // Color mode dropdown
+    new Setting(colorsSection)
       .setName("Level color mode")
       .setDesc("How to apply hierarchy level colors (or none to disable)")
       .addDropdown((dropdown) =>
@@ -476,7 +694,7 @@ class ViewEditorModal extends Modal {
 
     // File color (only show if colors are enabled)
     if (this.workingView.levelColorMode && this.workingView.levelColorMode !== "none") {
-      new Setting(containerEl)
+      new Setting(colorsSection)
         .setName("File color (optional)")
         .setDesc("Custom color for file nodes (no color by default)")
         .addColorPicker((color) =>
@@ -501,23 +719,35 @@ class ViewEditorModal extends Modal {
         );
     }
 
-    // Hierarchy levels section
-    containerEl.createEl("h3", { text: "Hierarchy Levels" });
-    containerEl.createEl("p", {
-      text: "Define how files are grouped at each level (top to bottom)",
-      cls: "setting-item-description",
-    });
+    // Hierarchy levels section (collapsible)
+    const levelsSection = this.createCollapsibleSection(
+      containerEl,
+      "Hierarchy Levels",
+      "levels",
+      true
+    );
 
-    const levelsContainer = containerEl.createDiv("tag-tree-levels-container");
+    new Setting(levelsSection)
+      .setName("")
+      .setDesc("Define how files are grouped at each level (top to bottom)");
+
+    const levelsContainer = levelsSection.createDiv();
     this.renderLevels(levelsContainer);
 
     // Save/Cancel buttons
     const buttonsContainer = containerEl.createDiv("modal-button-container");
+    buttonsContainer.style.display = "flex";
+    buttonsContainer.style.justifyContent = "flex-end";
+    buttonsContainer.style.gap = "8px";
+    buttonsContainer.style.marginTop = "16px";
+
     new Setting(buttonsContainer)
       .addButton((button) =>
-        button.setButtonText("Cancel").onClick(() => {
-          this.close();
-        })
+        button
+          .setButtonText("Cancel")
+          .onClick(() => {
+            this.close();
+          })
       )
       .addButton((button) =>
         button
@@ -530,16 +760,192 @@ class ViewEditorModal extends Modal {
   }
 
   /**
+   * Create a collapsible section using details/summary with state tracking
+   */
+  private createCollapsibleSection(
+    parent: HTMLElement,
+    title: string,
+    stateKey: string,
+    defaultOpen: boolean = false
+  ): HTMLElement {
+    const details = parent.createEl("details", { cls: "tag-tree-collapsible-section" });
+
+    // Use stored state if available, otherwise use default
+    const isOpen = this.collapseState[stateKey as keyof typeof this.collapseState] ?? defaultOpen;
+    if (isOpen) {
+      details.setAttribute("open", "");
+    }
+
+    const summary = details.createEl("summary", { cls: "tag-tree-section-header" });
+    summary.setText(title);
+
+    // Track state changes
+    details.addEventListener("toggle", () => {
+      (this.collapseState as any)[stateKey] = details.hasAttribute("open");
+    });
+
+    const content = details.createDiv("tag-tree-section-content");
+    return content;
+  }
+
+  /**
+   * Get a descriptive title for a hierarchy level
+   */
+  private getLevelTitle(level: HierarchyLevel, index: number): string {
+    const levelNum = index + 1;
+
+    if (level.type === "tag") {
+      const tagLevel = level as TagHierarchyLevel;
+      const key = level.key || "(empty)";
+      const depth = tagLevel.depth === -1 ? "full hierarchy" : `depth ${tagLevel.depth}`;
+      return `Level ${levelNum}: #${key} tag (${depth})`;
+    } else {
+      const key = level.key || "(empty)";
+      return `Level ${levelNum}: ${key} property`;
+    }
+  }
+
+  /**
+   * Create a collapsible section for a hierarchy level with controls in header
+   */
+  private createLevelCollapsible(
+    parent: HTMLElement,
+    title: string,
+    index: number,
+    onMoveUp: () => void,
+    onMoveDown: () => void,
+    onDelete: () => void
+  ): HTMLElement {
+    const details = parent.createEl("details", { cls: "tag-tree-collapsible-section" });
+
+    // Use stored state if available, otherwise default to collapsed
+    const isOpen = this.collapseState.levelItems.get(index) ?? false;
+    if (isOpen) {
+      details.setAttribute("open", "");
+    }
+
+    const summary = details.createEl("summary", { cls: "tag-tree-section-header tag-tree-level-header" });
+
+    // Add title text
+    const titleSpan = summary.createSpan({ cls: "tag-tree-level-title" });
+    titleSpan.setText(title);
+
+    // Add controls container
+    const controls = summary.createDiv({ cls: "tag-tree-level-controls" });
+
+    // Move up button
+    const moveUpBtn = controls.createEl("button", {
+      cls: "clickable-icon",
+      attr: {
+        "aria-label": "Move level up",
+        "title": "Move level up"
+      }
+    });
+    setIcon(moveUpBtn, "arrow-up");
+    if (index === 0) {
+      moveUpBtn.addClass("is-disabled");
+      moveUpBtn.setAttribute("disabled", "");
+    }
+    moveUpBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (index > 0) {
+        onMoveUp();
+      }
+    });
+
+    // Move down button
+    const moveDownBtn = controls.createEl("button", {
+      cls: "clickable-icon",
+      attr: {
+        "aria-label": "Move level down",
+        "title": "Move level down"
+      }
+    });
+    setIcon(moveDownBtn, "arrow-down");
+    if (index === this.workingView.levels.length - 1) {
+      moveDownBtn.addClass("is-disabled");
+      moveDownBtn.setAttribute("disabled", "");
+    }
+    moveDownBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (index < this.workingView.levels.length - 1) {
+        onMoveDown();
+      }
+    });
+
+    // Delete button
+    const deleteBtn = controls.createEl("button", {
+      cls: "clickable-icon",
+      attr: {
+        "aria-label": "Delete level",
+        "title": "Delete level"
+      }
+    });
+    setIcon(deleteBtn, "trash");
+    if (this.workingView.levels.length <= 1) {
+      deleteBtn.addClass("is-disabled");
+      deleteBtn.setAttribute("disabled", "");
+    }
+    deleteBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.workingView.levels.length > 1) {
+        onDelete();
+      } else {
+        new Notice("Cannot delete the last level");
+      }
+    });
+
+    // Track state changes
+    details.addEventListener("toggle", () => {
+      this.collapseState.levelItems.set(index, details.hasAttribute("open"));
+    });
+
+    const content = details.createDiv("tag-tree-section-content");
+    return content;
+  }
+
+  /**
    * Render the hierarchy levels list
    */
   private renderLevels(containerEl: HTMLElement): void {
     containerEl.empty();
 
     this.workingView.levels.forEach((level, index) => {
-      const levelContainer = containerEl.createDiv("tag-tree-level-item");
-      levelContainer.createEl("h4", { text: `Level ${index + 1}` });
+      // Create collapsible level with descriptive header and controls
+      const levelTitle = this.getLevelTitle(level, index);
+      const levelContent = this.createLevelCollapsible(
+        containerEl,
+        levelTitle,
+        index,
+        () => {
+          // Move up
+          [this.workingView.levels[index - 1], this.workingView.levels[index]] = [
+            this.workingView.levels[index],
+            this.workingView.levels[index - 1],
+          ];
+          this.renderEditor(this.contentEl);
+        },
+        () => {
+          // Move down
+          [this.workingView.levels[index], this.workingView.levels[index + 1]] = [
+            this.workingView.levels[index + 1],
+            this.workingView.levels[index],
+          ];
+          this.renderEditor(this.contentEl);
+        },
+        () => {
+          // Delete
+          this.workingView.levels.splice(index, 1);
+          this.renderEditor(this.contentEl);
+        }
+      );
 
-      // Type selector
+      const levelContainer = levelContent.createDiv("setting-item-level");
+
+      // Type selector (without action buttons now - they're in the header)
       new Setting(levelContainer)
         .setName("Type")
         .addDropdown((dropdown) =>
@@ -562,47 +968,6 @@ class ViewEditorModal extends Modal {
                 });
               }
               this.renderEditor(this.contentEl); // Re-render to update
-            })
-        )
-        .addExtraButton((button) =>
-          button
-            .setIcon("arrow-up")
-            .setTooltip("Move up")
-            .onClick(() => {
-              if (index > 0) {
-                [this.workingView.levels[index - 1], this.workingView.levels[index]] = [
-                  this.workingView.levels[index],
-                  this.workingView.levels[index - 1],
-                ];
-                this.renderEditor(this.contentEl); // Re-render
-              }
-            })
-        )
-        .addExtraButton((button) =>
-          button
-            .setIcon("arrow-down")
-            .setTooltip("Move down")
-            .onClick(() => {
-              if (index < this.workingView.levels.length - 1) {
-                [this.workingView.levels[index], this.workingView.levels[index + 1]] = [
-                  this.workingView.levels[index + 1],
-                  this.workingView.levels[index],
-                ];
-                this.renderEditor(this.contentEl); // Re-render
-              }
-            })
-        )
-        .addExtraButton((button) =>
-          button
-            .setIcon("trash")
-            .setTooltip("Delete level")
-            .onClick(() => {
-              if (this.workingView.levels.length > 1) {
-                this.workingView.levels.splice(index, 1);
-                this.renderEditor(this.contentEl); // Re-render
-              } else {
-                new Notice("Cannot delete the last level");
-              }
             })
         );
 
