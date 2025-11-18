@@ -326,6 +326,13 @@ export class TagTreeView extends ItemView {
       return;
     }
 
+    // Debug: Log the view config color settings
+    console.log("[TagTree] View config for", this.currentViewName, ":", {
+      enableLevelColors: viewConfig.enableLevelColors,
+      levelColorMode: viewConfig.levelColorMode,
+      fileColor: viewConfig.fileColor,
+    });
+
     // Apply level color mode to the tree container
     if (viewConfig.enableLevelColors && viewConfig.levelColorMode && viewConfig.levelColorMode !== "none") {
       container.setAttribute("data-level-color-mode", viewConfig.levelColorMode);
