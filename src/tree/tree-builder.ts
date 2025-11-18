@@ -617,13 +617,16 @@ export class TreeBuilder {
   ): TreeNode {
     // Base case: no more levels or no files
     if (depth >= levels.length || files.length === 0) {
-      const fileNodes = files.map((f) => createFileNode(f, depth, parentId));
+      // Tree depth is hierarchy level index + 1 (root is depth 0)
+      // When we've exhausted all levels, depth is the next level index,
+      // so file nodes should be at depth + 1
+      const fileNodes = files.map((f) => createFileNode(f, depth + 1, parentId));
       return {
         id: parentId || "root",
         name: "Root",
         type: "tag",
         children: fileNodes,
-        depth,
+        depth: 0, // This wrapper node is returned as the root
         files: [],
         fileCount: files.length,
       };
@@ -657,13 +660,15 @@ export class TreeBuilder {
 
     // Create nodes for each group
     const children: TreeNode[] = [];
+    // Tree depth is hierarchy level index + 1 (root is depth 0)
+    const treeDepth = depth + 1;
 
     for (const [groupKey, groupFiles] of groups.entries()) {
       // Create the group node
       let node: TreeNode;
       if (level.type === "tag") {
         const tagLevel = level as TagHierarchyLevel;
-        node = createTagNode(groupKey, [], depth, {
+        node = createTagNode(groupKey, [], treeDepth, {
           label: tagLevel.label,
           showFullPath: tagLevel.showFullPath,
           parentId,
@@ -671,7 +676,7 @@ export class TreeBuilder {
         });
       } else {
         const propLevel = level as PropertyHierarchyLevel;
-        node = createPropertyGroupNode(level.key, groupKey, [], depth, {
+        node = createPropertyGroupNode(level.key, groupKey, [], treeDepth, {
           label: propLevel.label,
           showPropertyName: propLevel.showPropertyName,
           parentId,
@@ -704,14 +709,14 @@ export class TreeBuilder {
       // Add file nodes for files that end at this level
       // Only add if showPartialMatches=true OR this is the last hierarchy level
       if (showPartialMatches || depth + 1 >= levels.length) {
-        console.log(`[TagTree] Adding ${filesForThisLevel.length} partial match files at depth ${depth}. showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
+        console.log(`[TagTree] Adding ${filesForThisLevel.length} partial match files at hierarchy level ${depth}. showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
         for (const file of filesForThisLevel) {
-          const fileNode = createFileNode(file, depth + 1, node.id);
+          const fileNode = createFileNode(file, treeDepth + 1, node.id);
           fileNode.parent = node;
           node.children.push(fileNode);
         }
       } else {
-        console.log(`[TagTree] NOT adding ${filesForThisLevel.length} partial match files at depth ${depth}. showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
+        console.log(`[TagTree] NOT adding ${filesForThisLevel.length} partial match files at hierarchy level ${depth}. showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
       }
 
       // Recursively build next level for files that continue
@@ -744,7 +749,7 @@ export class TreeBuilder {
       name: "Root",
       type: "tag",
       children,
-      depth,
+      depth: 0, // Root wrapper is always depth 0
       files: [],
       fileCount: 0,
     };
@@ -774,7 +779,8 @@ export class TreeBuilder {
     parentId?: string
   ): TreeNode {
     const tagDepth = tagLevel.depth || 1;
-    const treeDepth = hierarchyDepth;
+    // Tree depth is hierarchy level index + 1 (root is depth 0)
+    const treeDepth = hierarchyDepth + 1;
 
     // Group files by tags at current sub-depth (1 level at a time)
     const groups = new Map<string, TFile[]>();
