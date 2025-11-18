@@ -3,7 +3,7 @@ import { VaultIndexer } from "./indexer/vault-indexer";
 import { TreeBuilder } from "./tree/tree-builder";
 import { TreeComponent } from "./components/tree-component";
 import { TreeToolbar } from "./components/tree-toolbar";
-import { ViewState, SortMode, FileSortMode } from "./types/view-state";
+import { ViewState, SortMode, FileSortMode, DEFAULT_VIEW_STATE } from "./types/view-state";
 import { SearchQueryBuilder } from "./utils/search-query-builder";
 import { ObsidianSearch } from "./utils/obsidian-search";
 import { TreeNode } from "./types/tree-node";
@@ -183,10 +183,21 @@ export class TagTreeView extends ItemView {
       return;
     }
 
-    // Update tree component file sort mode
+    // Update ViewState FIRST so buildAndRenderTree uses the new sort mode
+    const viewState = this.plugin.settings.viewStates[this.currentViewName];
+    if (!viewState) {
+      this.plugin.settings.viewStates[this.currentViewName] = {
+        ...DEFAULT_VIEW_STATE,
+        fileSortMode: mode,
+      };
+    } else {
+      viewState.fileSortMode = mode;
+    }
+
+    // Update tree component file sort mode (for consistency)
     this.treeComponent.setFileSortMode(mode);
 
-    // Rebuild and re-render tree
+    // Rebuild and re-render tree (will now use the updated ViewState)
     const container = this.containerEl.querySelector(
       ".tag-tree-content"
     ) as HTMLElement;
