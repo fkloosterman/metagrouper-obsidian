@@ -23,6 +23,51 @@
    Settings Styles
    ======================================== */
 
+/* Collapsible sections */
+.tag-tree-collapsible-section {
+  margin: var(--size-4-4) 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background-color: var(--background-primary);
+}
+
+.tag-tree-section-header {
+  padding: var(--size-4-2) var(--size-4-3);
+  font-weight: var(--font-semibold);
+  font-size: var(--font-ui-medium);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  background-color: var(--background-secondary);
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
+}
+
+.tag-tree-section-header:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.tag-tree-section-header::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: var(--size-4-1);
+  border-style: solid;
+  border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent var(--text-muted);
+  transition: transform 0.1s ease;
+}
+
+.tag-tree-collapsible-section[open] > .tag-tree-section-header::before {
+  transform: rotate(90deg);
+}
+
+.tag-tree-section-content {
+  padding: var(--size-4-2) var(--size-4-3);
+}
+
 /* Hierarchy level item separator */
 .setting-item-level {
   padding: var(--size-4-3);

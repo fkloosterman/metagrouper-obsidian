@@ -31,36 +31,11 @@ export class TagTreeSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    // Default view selector
-    this.renderDefaultViewSelector(containerEl);
-
-    // Saved views list
+    // Saved views list (includes default indicator)
     this.renderSavedViewsList(containerEl);
 
     // Import/Export section
     this.renderImportExport(containerEl);
-  }
-
-  /**
-   * Render the default view selector
-   */
-  private renderDefaultViewSelector(containerEl: HTMLElement): void {
-    new Setting(containerEl)
-      .setName("Default view")
-      .setDesc("The view to load when opening a new Tag Tree sidebar")
-      .addDropdown((dropdown) => {
-        // Add all saved views to dropdown
-        this.plugin.settings.savedViews.forEach((view) => {
-          dropdown.addOption(view.name, view.name);
-        });
-
-        dropdown
-          .setValue(this.plugin.settings.defaultViewName)
-          .onChange(async (value) => {
-            this.plugin.settings.defaultViewName = value;
-            await this.plugin.saveSettings();
-          });
-      });
   }
 
   /**
@@ -69,27 +44,46 @@ export class TagTreeSettingsTab extends PluginSettingTab {
   private renderSavedViewsList(containerEl: HTMLElement): void {
     new Setting(containerEl).setHeading().setName("Saved Views");
 
+    new Setting(containerEl)
+      .setName("")
+      .setDesc("Click the star to set a view as default. Default view cannot be deleted.");
+
     const listContainer = containerEl.createDiv();
 
     this.plugin.settings.savedViews.forEach((view, index) => {
+      const isDefault = view.name === this.plugin.settings.defaultViewName;
+
       const viewSetting = new Setting(listContainer)
         .setName(view.name)
         .setDesc(this.getViewDescription(view))
-        .addButton((button) =>
-          button.setButtonText("Edit").onClick(() => {
-            new ViewEditorModal(this.app, this.plugin, view, (edited) => {
-              this.plugin.settings.savedViews[index] = edited;
-              this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands for renamed/edited views
-              this.display(); // Refresh settings UI
-              this.plugin.refreshAllViews(edited.name);
-            }).open();
-          })
-        )
-        .addButton((button) =>
+        .addExtraButton((button) =>
           button
-            .setButtonText("Duplicate")
-            .setWarning()
+            .setIcon(isDefault ? "star" : "star-off")
+            .setTooltip(isDefault ? "Default view" : "Set as default view")
+            .onClick(async () => {
+              this.plugin.settings.defaultViewName = view.name;
+              await this.plugin.saveSettings();
+              this.display(); // Refresh to update star icons
+            })
+        )
+        .addExtraButton((button) =>
+          button
+            .setIcon("pencil")
+            .setTooltip("Edit view")
+            .onClick(() => {
+              new ViewEditorModal(this.app, this.plugin, view, (edited) => {
+                this.plugin.settings.savedViews[index] = edited;
+                this.plugin.saveSettings();
+                this.plugin.updateViewCommands();
+                this.display();
+                this.plugin.refreshAllViews(edited.name);
+              }).open();
+            })
+        )
+        .addExtraButton((button) =>
+          button
+            .setIcon("copy")
+            .setTooltip("Duplicate view")
             .onClick(async () => {
               const duplicated = {
                 ...view,
@@ -97,30 +91,17 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               };
               this.plugin.settings.savedViews.push(duplicated);
               await this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands for new view
-              this.display(); // Refresh settings UI
+              this.plugin.updateViewCommands();
+              this.display();
               new Notice(`Duplicated view: ${view.name}`);
             })
         )
-        .addButton((button) =>
+        .addExtraButton((button) =>
           button
-            .setButtonText("Delete")
-            .setWarning()
+            .setIcon("trash")
+            .setTooltip(isDefault ? "Cannot delete default view" : "Delete view")
+            .setDisabled(isDefault || this.plugin.settings.savedViews.length <= 1)
             .onClick(async () => {
-              // Prevent deleting the last view
-              if (this.plugin.settings.savedViews.length <= 1) {
-                new Notice("Cannot delete the last view");
-                return;
-              }
-
-              // Prevent deleting the default view
-              if (view.name === this.plugin.settings.defaultViewName) {
-                new Notice(
-                  "Cannot delete the default view. Please set a different default view first."
-                );
-                return;
-              }
-
               // Confirm deletion
               const confirmed = await this.confirmDelete(view.name);
               if (!confirmed) return;
@@ -128,8 +109,8 @@ export class TagTreeSettingsTab extends PluginSettingTab {
               // Remove the view
               this.plugin.settings.savedViews.splice(index, 1);
               await this.plugin.saveSettings();
-              this.plugin.updateViewCommands(); // Update commands after deletion
-              this.display(); // Refresh settings UI
+              this.plugin.updateViewCommands();
+              this.display();
               new Notice(`Deleted view: ${view.name}`);
             })
         );
@@ -357,11 +338,15 @@ class ViewEditorModal extends Modal {
   private renderEditor(containerEl: HTMLElement): void {
     containerEl.empty();
 
-    // Basic Configuration Section
-    new Setting(containerEl).setHeading().setName("Basic Configuration");
+    // Basic Configuration Section (collapsible)
+    const basicSection = this.createCollapsibleSection(
+      containerEl,
+      "Basic Configuration",
+      true
+    );
 
     // View name
-    new Setting(containerEl)
+    new Setting(basicSection)
       .setName("View name")
       .setDesc("Unique name for this view")
       .addText((text) =>
@@ -374,7 +359,7 @@ class ViewEditorModal extends Modal {
       );
 
     // Root tag filter (optional)
-    new Setting(containerEl)
+    new Setting(basicSection)
       .setName("Root tag filter")
       .setDesc(
         "Optional: Only include files with this tag (e.g., 'project' for #project)"
@@ -388,11 +373,15 @@ class ViewEditorModal extends Modal {
           })
       );
 
-    // Sorting and Display Options Section
-    new Setting(containerEl).setHeading().setName("Sorting & Display Options");
+    // Sorting and Display Options Section (collapsible)
+    const sortingSection = this.createCollapsibleSection(
+      containerEl,
+      "Sorting & Display Options",
+      true
+    );
 
     // Default node sort mode
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default node sort mode")
       .setDesc("How to sort tag and property nodes in the tree")
       .addDropdown((dropdown) => {
@@ -409,7 +398,7 @@ class ViewEditorModal extends Modal {
       });
 
     // Default file sort mode
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default file sort mode")
       .setDesc("How to sort files within each group")
       .addDropdown((dropdown) => {
@@ -430,7 +419,7 @@ class ViewEditorModal extends Modal {
       });
 
     // Default expanded depth
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Default expansion depth")
       .setDesc("How many levels to expand by default (-1 for all)")
       .addText((text) =>
@@ -446,7 +435,7 @@ class ViewEditorModal extends Modal {
       );
 
     // Show partial matches
-    new Setting(containerEl)
+    new Setting(sortingSection)
       .setName("Show files with partial matches")
       .setDesc("Show files at the deepest level they match (even if they don't match all levels)")
       .addToggle((toggle) =>
@@ -457,11 +446,15 @@ class ViewEditorModal extends Modal {
           })
       );
 
-    // Level colors section
-    new Setting(containerEl).setHeading().setName("Hierarchy Level Colors");
+    // Level colors section (collapsible)
+    const colorsSection = this.createCollapsibleSection(
+      containerEl,
+      "Hierarchy Level Colors",
+      false
+    );
 
-    // Color mode dropdown (replaces enable toggle + mode dropdown)
-    new Setting(containerEl)
+    // Color mode dropdown
+    new Setting(colorsSection)
       .setName("Level color mode")
       .setDesc("How to apply hierarchy level colors (or none to disable)")
       .addDropdown((dropdown) =>
@@ -479,7 +472,7 @@ class ViewEditorModal extends Modal {
 
     // File color (only show if colors are enabled)
     if (this.workingView.levelColorMode && this.workingView.levelColorMode !== "none") {
-      new Setting(containerEl)
+      new Setting(colorsSection)
         .setName("File color (optional)")
         .setDesc("Custom color for file nodes (no color by default)")
         .addColorPicker((color) =>
@@ -504,14 +497,18 @@ class ViewEditorModal extends Modal {
         );
     }
 
-    // Hierarchy levels section
-    new Setting(containerEl).setHeading().setName("Hierarchy Levels");
+    // Hierarchy levels section (collapsible)
+    const levelsSection = this.createCollapsibleSection(
+      containerEl,
+      "Hierarchy Levels",
+      true
+    );
 
-    new Setting(containerEl)
+    new Setting(levelsSection)
       .setName("")
       .setDesc("Define how files are grouped at each level (top to bottom)");
 
-    const levelsContainer = containerEl.createDiv();
+    const levelsContainer = levelsSection.createDiv();
     this.renderLevels(levelsContainer);
 
     // Save/Cancel buttons
@@ -540,13 +537,57 @@ class ViewEditorModal extends Modal {
   }
 
   /**
+   * Create a collapsible section using details/summary
+   */
+  private createCollapsibleSection(
+    parent: HTMLElement,
+    title: string,
+    open: boolean = false
+  ): HTMLElement {
+    const details = parent.createEl("details", { cls: "tag-tree-collapsible-section" });
+    if (open) {
+      details.setAttribute("open", "");
+    }
+    const summary = details.createEl("summary", { cls: "tag-tree-section-header" });
+    summary.setText(title);
+    const content = details.createDiv("tag-tree-section-content");
+    return content;
+  }
+
+  /**
+   * Get a descriptive title for a hierarchy level
+   */
+  private getLevelTitle(level: HierarchyLevel, index: number): string {
+    const levelNum = index + 1;
+    const typeLabel = level.type === "tag" ? "Tag" : "Property";
+    const key = level.key || "(empty)";
+    const label = level.label ? ` "${level.label}"` : "";
+
+    if (level.type === "tag") {
+      const tagLevel = level as TagHierarchyLevel;
+      const depth = tagLevel.depth === -1 ? "full hierarchy" : `depth ${tagLevel.depth}`;
+      return `Level ${levelNum}: ${typeLabel} - ${key}${label} (${depth})`;
+    } else {
+      return `Level ${levelNum}: ${typeLabel} - ${key}${label}`;
+    }
+  }
+
+  /**
    * Render the hierarchy levels list
    */
   private renderLevels(containerEl: HTMLElement): void {
     containerEl.empty();
 
     this.workingView.levels.forEach((level, index) => {
-      const levelContainer = containerEl.createDiv("setting-item-level");
+      // Create collapsible level with descriptive header
+      const levelTitle = this.getLevelTitle(level, index);
+      const levelContent = this.createCollapsibleSection(
+        containerEl,
+        levelTitle,
+        true
+      );
+
+      const levelContainer = levelContent.createDiv("setting-item-level");
 
       // Type selector with action buttons
       new Setting(levelContainer)
