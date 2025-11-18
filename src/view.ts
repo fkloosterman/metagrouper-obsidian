@@ -110,7 +110,7 @@ export class TagTreeView extends ItemView {
       this.restoreViewState();
 
       // Create and render toolbar
-      const toolbarContainer = container.createDiv("tag-tree-toolbar-container");
+      const toolbarContainer = container.createDiv("tree-item-self");
       this.toolbar = new TreeToolbar(
         {
           onFileSortChange: (mode: FileSortMode) => {
