@@ -752,7 +752,8 @@ export class TreeBuilder {
 
     // Add unmatched files as partial matches if enabled
     // These are files that matched previous levels but don't match this level
-    if (showPartialMatches && unmatchedFiles.length > 0) {
+    // Only show if depth > 0 (they've matched at least one previous level)
+    if (showPartialMatches && unmatchedFiles.length > 0 && depth > 0) {
       // Add them as file nodes directly to the children
       for (const file of unmatchedFiles) {
         const fileNode = createFileNode(file, treeDepth, parentId);
