@@ -656,7 +656,12 @@ export class TreeBuilder {
     }
 
     // Single-depth grouping (original logic)
+    console.log(`[TagTree] buildLevelRecursive at depth ${depth}, level type=${level.type}, key=${level.key}, files.length=${files.length}, files:`, files.map(f => f.basename));
     const groups = this.groupFilesByLevel(files, level, parentTagPath);
+    console.log(`[TagTree] After grouping at depth ${depth}: ${groups.size} groups`);
+    for (const [key, groupFiles] of groups.entries()) {
+      console.log(`  Group "${key}": ${groupFiles.length} files:`, groupFiles.map(f => f.basename));
+    }
 
     // Track which files were successfully grouped
     const groupedFiles = new Set<TFile>();
@@ -666,6 +671,7 @@ export class TreeBuilder {
 
     // Find files that didn't match this level (weren't grouped)
     const unmatchedFiles = files.filter(f => !groupedFiles.has(f));
+    console.log(`[TagTree] At depth ${depth}: ${unmatchedFiles.length} files did not match this level:`, unmatchedFiles.map(f => f.basename));
 
     // Create nodes for each group
     const children: TreeNode[] = [];
@@ -737,6 +743,7 @@ export class TreeBuilder {
         const newParentTagPath =
           level.type === "tag" ? groupKey : parentTagPath;
 
+        console.log(`[TagTree] Recursing from depth ${depth} to ${depth + 1} with ${filesForNextLevel.length} files:`, filesForNextLevel.map(f => f.basename));
         const childTreeNode = this.buildLevelRecursive(
           filesForNextLevel,
           levels,
