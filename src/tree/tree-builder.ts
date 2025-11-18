@@ -658,6 +658,15 @@ export class TreeBuilder {
     // Single-depth grouping (original logic)
     const groups = this.groupFilesByLevel(files, level, parentTagPath);
 
+    // Track which files were successfully grouped
+    const groupedFiles = new Set<TFile>();
+    for (const groupFiles of groups.values()) {
+      groupFiles.forEach(f => groupedFiles.add(f));
+    }
+
+    // Find files that didn't match this level (weren't grouped)
+    const unmatchedFiles = files.filter(f => !groupedFiles.has(f));
+
     // Create nodes for each group
     const children: TreeNode[] = [];
     // Tree depth is hierarchy level index + 1 (root is depth 0)
@@ -695,7 +704,9 @@ export class TreeBuilder {
           level.type === "tag" ? groupKey : parentTagPath;
 
         for (const file of groupFiles) {
-          if (this.fileMatchesLevel(file, nextLevel, nextParentTagPath)) {
+          const matches = this.fileMatchesLevel(file, nextLevel, nextParentTagPath);
+          console.log(`[TagTree] File "${file.basename}" at depth ${depth}: matches next level (${nextLevel.type} ${nextLevel.key})? ${matches}`);
+          if (matches) {
             filesForNextLevel.push(file);
           } else {
             filesForThisLevel.push(file);
@@ -708,12 +719,16 @@ export class TreeBuilder {
 
       // Add file nodes for files that end at this level
       // Only add if showPartialMatches=true OR this is the last hierarchy level
+      console.log(`[TagTree] At depth ${depth}, filesForThisLevel.length=${filesForThisLevel.length}, showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
       if (showPartialMatches || depth + 1 >= levels.length) {
+        console.log(`[TagTree] Adding ${filesForThisLevel.length} files at depth ${depth}:`, filesForThisLevel.map(f => f.basename));
         for (const file of filesForThisLevel) {
           const fileNode = createFileNode(file, treeDepth + 1, node.id);
           fileNode.parent = node;
           node.children.push(fileNode);
         }
+      } else {
+        console.log(`[TagTree] NOT adding ${filesForThisLevel.length} files at depth ${depth} (showPartialMatches=false and not last level)`);
       }
 
       // Recursively build next level for files that continue
@@ -739,6 +754,18 @@ export class TreeBuilder {
       }
 
       children.push(node);
+    }
+
+    // Add unmatched files as partial matches if enabled
+    // These are files that matched previous levels but don't match this level
+    console.log(`[TagTree] At depth ${depth}, unmatchedFiles.length=${unmatchedFiles.length}, showPartialMatches=${showPartialMatches}`);
+    if (showPartialMatches && unmatchedFiles.length > 0) {
+      console.log(`[TagTree] Adding ${unmatchedFiles.length} UNMATCHED files at depth ${depth}:`, unmatchedFiles.map(f => f.basename));
+      // Add them as file nodes directly to the children
+      for (const file of unmatchedFiles) {
+        const fileNode = createFileNode(file, treeDepth, parentId);
+        children.push(fileNode);
+      }
     }
 
     return {
