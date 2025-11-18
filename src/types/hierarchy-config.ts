@@ -1,4 +1,4 @@
-import { SortMode } from "./view-state";
+import { SortMode, FileSortMode } from "./view-state";
 
 /**
  * Base hierarchy level interface
@@ -80,8 +80,11 @@ export interface HierarchyConfig {
   /** Default expansion depth (0 = collapsed, -1 = fully expanded) */
   defaultExpanded?: number;
 
-  /** Default sort mode for all levels (can be overridden per level) */
-  sortMode?: SortMode;
+  /** Default sort mode for tag/property nodes (can be overridden per level) */
+  defaultNodeSortMode?: SortMode;
+
+  /** Default sort mode for file nodes */
+  defaultFileSortMode?: FileSortMode;
 }
 
 /**
@@ -98,7 +101,8 @@ export interface ValidationResult {
 export const DEFAULT_HIERARCHY_CONFIG: Partial<HierarchyConfig> = {
   showPartialMatches: false,
   defaultExpanded: 1,
-  sortMode: "alpha-asc",
+  defaultNodeSortMode: "alpha-asc",
+  defaultFileSortMode: "alpha-asc",
 };
 
 /**
@@ -293,8 +297,8 @@ export function validateHierarchyConfig(
     errors.push("Hierarchy config 'showPartialMatches' must be a boolean");
   }
 
-  // Validate optional sortMode
-  if (config.sortMode !== undefined) {
+  // Validate optional defaultNodeSortMode
+  if (config.defaultNodeSortMode !== undefined) {
     const validSortModes: SortMode[] = [
       "alpha-asc",
       "alpha-desc",
@@ -302,9 +306,31 @@ export function validateHierarchyConfig(
       "count-asc",
       "none",
     ];
-    if (!validSortModes.includes(config.sortMode)) {
+    if (!validSortModes.includes(config.defaultNodeSortMode)) {
       errors.push(
-        `Invalid sort mode: '${config.sortMode}'. Must be one of: ${validSortModes.join(", ")}`
+        `Invalid default node sort mode: '${config.defaultNodeSortMode}'. Must be one of: ${validSortModes.join(", ")}`
+      );
+    }
+  }
+
+  // Validate optional defaultFileSortMode
+  if (config.defaultFileSortMode !== undefined) {
+    const validFileSortModes: FileSortMode[] = [
+      "alpha-asc",
+      "alpha-desc",
+      "created-desc",
+      "created-asc",
+      "modified-desc",
+      "modified-asc",
+      "accessed-desc",
+      "accessed-asc",
+      "size-desc",
+      "size-asc",
+      "none",
+    ];
+    if (!validFileSortModes.includes(config.defaultFileSortMode)) {
+      errors.push(
+        `Invalid default file sort mode: '${config.defaultFileSortMode}'. Must be one of: ${validFileSortModes.join(", ")}`
       );
     }
   }
@@ -396,7 +422,8 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
     ],
     showPartialMatches: false,
     defaultExpanded: 2,
-    sortMode: "alpha-asc",
+    defaultNodeSortMode: "alpha-asc",
+    defaultFileSortMode: "alpha-asc",
   },
   {
     name: "Projects by Status",
@@ -427,7 +454,8 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
     ],
     showPartialMatches: false,
     defaultExpanded: 2,
-    sortMode: "alpha-asc",
+    defaultNodeSortMode: "alpha-asc",
+    defaultFileSortMode: "alpha-asc",
   },
   {
     name: "Research by Topic and Year",
@@ -459,7 +487,8 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
     ],
     showPartialMatches: false,
     defaultExpanded: 1,
-    sortMode: "alpha-asc",
+    defaultNodeSortMode: "alpha-asc",
+    defaultFileSortMode: "alpha-asc",
   },
   {
     name: "Tasks by Status and Project",
@@ -483,6 +512,7 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
     ],
     showPartialMatches: false,
     defaultExpanded: 1,
-    sortMode: "count-desc",
+    defaultNodeSortMode: "count-desc",
+    defaultFileSortMode: "alpha-asc",
   },
 ];

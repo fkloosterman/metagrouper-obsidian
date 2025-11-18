@@ -11,7 +11,7 @@ import {
   createTagLevel,
   createPropertyLevel,
 } from "../types/hierarchy-config";
-import { SortMode } from "../types/view-state";
+import { SortMode, FileSortMode } from "../types/view-state";
 
 /**
  * Settings tab for Tag Tree plugin
@@ -381,20 +381,43 @@ class ViewEditorModal extends Modal {
           })
       );
 
-    // Default sort mode
+    // Default node sort mode
     new Setting(containerEl)
-      .setName("Default sort mode")
-      .setDesc("How to sort nodes in the tree")
+      .setName("Default node sort mode")
+      .setDesc("How to sort tag and property nodes in the tree")
       .addDropdown((dropdown) => {
         dropdown
           .addOption("alpha-asc", "Alphabetical (A-Z)")
           .addOption("alpha-desc", "Alphabetical (Z-A)")
           .addOption("count-desc", "File count (Most first)")
           .addOption("count-asc", "File count (Least first)")
-          .addOption("none", "No sorting")
-          .setValue(this.workingView.sortMode || "alpha-asc")
+          .addOption("none", "Unsorted")
+          .setValue(this.workingView.defaultNodeSortMode || "alpha-asc")
           .onChange((value) => {
-            this.workingView.sortMode = value as SortMode;
+            this.workingView.defaultNodeSortMode = value as SortMode;
+          });
+      });
+
+    // Default file sort mode
+    new Setting(containerEl)
+      .setName("Default file sort mode")
+      .setDesc("How to sort files within each group")
+      .addDropdown((dropdown) => {
+        dropdown
+          .addOption("alpha-asc", "Alphabetical (A-Z)")
+          .addOption("alpha-desc", "Alphabetical (Z-A)")
+          .addOption("created-desc", "Created (Newest first)")
+          .addOption("created-asc", "Created (Oldest first)")
+          .addOption("modified-desc", "Modified (Newest first)")
+          .addOption("modified-asc", "Modified (Oldest first)")
+          .addOption("accessed-desc", "Accessed (Most recent)")
+          .addOption("accessed-asc", "Accessed (Least recent)")
+          .addOption("size-desc", "Size (Largest first)")
+          .addOption("size-asc", "Size (Smallest first)")
+          .addOption("none", "Unsorted")
+          .setValue(this.workingView.defaultFileSortMode || "alpha-asc")
+          .onChange((value) => {
+            this.workingView.defaultFileSortMode = value as FileSortMode;
           });
       });
 
@@ -633,6 +656,24 @@ class ViewEditorModal extends Modal {
               level.label = value.trim() || undefined;
             })
         );
+
+      // Sort override
+      new Setting(levelContainer)
+        .setName("Sort override (optional)")
+        .setDesc("Override the default node sort mode for this specific level")
+        .addDropdown((dropdown) => {
+          dropdown
+            .addOption("", "Use default")
+            .addOption("alpha-asc", "Alphabetical (A-Z)")
+            .addOption("alpha-desc", "Alphabetical (Z-A)")
+            .addOption("count-desc", "File count (Most first)")
+            .addOption("count-asc", "File count (Least first)")
+            .addOption("none", "Unsorted")
+            .setValue(level.sortBy || "")
+            .onChange((value) => {
+              level.sortBy = value ? (value as SortMode) : undefined;
+            });
+        });
     });
 
     // Add level button

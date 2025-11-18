@@ -38,6 +38,9 @@ export interface TreeNode {
 
     /** Property value for property nodes */
     propertyValue?: any;
+
+    /** Index of the hierarchy level this node belongs to */
+    levelIndex?: number;
   };
 
   /** UI state (managed by TreeComponent) */

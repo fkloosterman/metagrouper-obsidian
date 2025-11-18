@@ -1,6 +1,6 @@
 import { App, TFile, setIcon } from "obsidian";
 import { TreeNode } from "../types/tree-node";
-import { SortMode } from "../types/view-state";
+import { SortMode, FileSortMode } from "../types/view-state";
 
 /**
  * TreeComponent - Renders and manages the collapsible tree UI
@@ -19,7 +19,8 @@ export class TreeComponent {
   // UI state
   private expandedNodes: Set<string> = new Set();
   private showFiles: boolean = true;
-  private sortMode: SortMode = "alpha-asc";
+  private sortMode: SortMode = "alpha-asc"; // Legacy, kept for compatibility
+  private fileSortMode: FileSortMode = "alpha-asc";
   private hasInitializedExpansion: boolean = false;
 
   // Configuration
@@ -490,6 +491,7 @@ export class TreeComponent {
 
   /**
    * Get current sort mode (for state persistence)
+   * LEGACY: Kept for compatibility
    */
   getSortMode(): SortMode {
     return this.sortMode;
@@ -497,10 +499,29 @@ export class TreeComponent {
 
   /**
    * Set sort mode (for state restoration)
+   * LEGACY: Kept for compatibility
    */
   setSortMode(mode: SortMode): void {
     if (this.sortMode !== mode) {
       this.sortMode = mode;
+      // Notify state change
+      this.onStateChange?.();
+    }
+  }
+
+  /**
+   * Get current file sort mode (for state persistence)
+   */
+  getFileSortMode(): FileSortMode {
+    return this.fileSortMode;
+  }
+
+  /**
+   * Set file sort mode (for state restoration)
+   */
+  setFileSortMode(mode: FileSortMode): void {
+    if (this.fileSortMode !== mode) {
+      this.fileSortMode = mode;
       // Notify state change
       this.onStateChange?.();
     }

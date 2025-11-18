@@ -5,8 +5,11 @@ export interface ViewState {
   /** IDs of expanded nodes */
   expandedNodes: string[];
 
-  /** Current sort mode (for Phase 2.2) */
-  sortMode?: SortMode;
+  /** Runtime file sort mode override (overrides config default) */
+  fileSortMode?: FileSortMode;
+
+  /** Runtime per-level sort mode overrides (levelIndex → SortMode) */
+  levelSortOverrides?: Record<number, SortMode>;
 
   /** Whether to show file nodes */
   showFiles: boolean;
@@ -16,7 +19,7 @@ export interface ViewState {
 }
 
 /**
- * Sort modes for tree nodes
+ * Sort modes for tree nodes (tag/property groups)
  */
 export type SortMode =
   | "alpha-asc"
@@ -26,11 +29,28 @@ export type SortMode =
   | "none";
 
 /**
+ * Sort modes for file nodes
+ */
+export type FileSortMode =
+  | "alpha-asc"
+  | "alpha-desc"
+  | "created-desc"
+  | "created-asc"
+  | "modified-desc"
+  | "modified-asc"
+  | "accessed-desc"
+  | "accessed-asc"
+  | "size-desc"
+  | "size-asc"
+  | "none";
+
+/**
  * Default view state
  */
 export const DEFAULT_VIEW_STATE: ViewState = {
   expandedNodes: [],
-  sortMode: "none",
+  fileSortMode: "alpha-asc",
+  levelSortOverrides: {},
   showFiles: true,
   scrollPosition: 0,
 };

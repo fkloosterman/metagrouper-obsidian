@@ -1,12 +1,12 @@
 import { setIcon } from "obsidian";
-import { SortMode } from "../types/view-state";
+import { SortMode, FileSortMode } from "../types/view-state";
 import { HierarchyConfig } from "../types/hierarchy-config";
 
 /**
  * Toolbar configuration for callbacks
  */
 export interface TreeToolbarCallbacks {
-  onSortChange: (mode: SortMode) => void;
+  onFileSortChange: (mode: FileSortMode) => void;
   onCollapseAll: () => void;
   onExpandAll: () => void;
   onExpandToDepth: (depth: number) => void;
@@ -22,18 +22,24 @@ export interface TreeToolbarCallbacks {
 export class TreeToolbar {
   private container: HTMLElement | null = null;
   private callbacks: TreeToolbarCallbacks;
-  private currentSortMode: SortMode;
+  private currentFileSortMode: FileSortMode;
   private showFiles: boolean = true;
   private savedViews: HierarchyConfig[];
   private currentViewName: string;
 
-  // Sort mode labels for dropdown
-  private readonly sortModeLabels: Record<SortMode, string> = {
+  // File sort mode labels for dropdown
+  private readonly fileSortModeLabels: Record<FileSortMode, string> = {
     "alpha-asc": "A → Z",
     "alpha-desc": "Z → A",
-    "count-desc": "Most files first",
-    "count-asc": "Fewest files first",
-    "none": "Default",
+    "created-desc": "Created ↓",
+    "created-asc": "Created ↑",
+    "modified-desc": "Modified ↓",
+    "modified-asc": "Modified ↑",
+    "accessed-desc": "Accessed ↓",
+    "accessed-asc": "Accessed ↑",
+    "size-desc": "Size ↓",
+    "size-asc": "Size ↑",
+    "none": "Unsorted",
   };
 
   // Depth options for expansion
@@ -47,13 +53,13 @@ export class TreeToolbar {
 
   constructor(
     callbacks: TreeToolbarCallbacks,
-    initialSortMode: SortMode = "alpha-asc",
+    initialFileSortMode: FileSortMode = "alpha-asc",
     initialShowFiles: boolean = true,
     savedViews: HierarchyConfig[] = [],
     currentViewName: string = "All Tags"
   ) {
     this.callbacks = callbacks;
-    this.currentSortMode = initialSortMode;
+    this.currentFileSortMode = initialFileSortMode;
     this.showFiles = initialShowFiles;
     this.savedViews = savedViews;
     this.currentViewName = currentViewName;
@@ -227,7 +233,7 @@ export class TreeToolbar {
   }
 
   /**
-   * Render the sort control dropdown
+   * Render the file sort control dropdown
    */
   private renderSortControl(row: HTMLElement): void {
     const sortSection = row.createDiv("toolbar-section");
@@ -236,49 +242,55 @@ export class TreeToolbar {
     const sortLabel = sortSection.createSpan("toolbar-label");
     const sortIcon = sortLabel.createSpan("toolbar-icon");
     setIcon(sortIcon, "arrow-up-down");
-    sortLabel.createSpan({ text: "Sort:" });
+    sortLabel.createSpan({ text: "Sort files:" });
 
     // Sort dropdown
     const sortDropdown = sortSection.createEl("select", {
       cls: "dropdown toolbar-dropdown",
     });
 
-    // Add options
-    const sortModes: SortMode[] = [
+    // Add file sort mode options
+    const fileSortModes: FileSortMode[] = [
       "alpha-asc",
       "alpha-desc",
-      "count-desc",
-      "count-asc",
+      "created-desc",
+      "created-asc",
+      "modified-desc",
+      "modified-asc",
+      "accessed-desc",
+      "accessed-asc",
+      "size-desc",
+      "size-asc",
     ];
 
-    for (const mode of sortModes) {
+    for (const mode of fileSortModes) {
       const option = sortDropdown.createEl("option", {
         value: mode,
-        text: this.sortModeLabels[mode],
+        text: this.fileSortModeLabels[mode],
       });
 
-      if (mode === this.currentSortMode) {
+      if (mode === this.currentFileSortMode) {
         option.selected = true;
       }
     }
 
     // Handle sort change
     sortDropdown.addEventListener("change", () => {
-      const newMode = sortDropdown.value as SortMode;
-      this.currentSortMode = newMode;
-      this.callbacks.onSortChange(newMode);
+      const newMode = sortDropdown.value as FileSortMode;
+      this.currentFileSortMode = newMode;
+      this.callbacks.onFileSortChange(newMode);
     });
   }
 
   /**
-   * Update the current sort mode
+   * Update the current file sort mode
    */
-  setSortMode(mode: SortMode): void {
-    if (this.currentSortMode === mode) {
+  setFileSortMode(mode: FileSortMode): void {
+    if (this.currentFileSortMode === mode) {
       return;
     }
 
-    this.currentSortMode = mode;
+    this.currentFileSortMode = mode;
 
     // Update dropdown if toolbar is rendered
     if (this.container) {
@@ -292,10 +304,10 @@ export class TreeToolbar {
   }
 
   /**
-   * Get current sort mode
+   * Get current file sort mode
    */
-  getSortMode(): SortMode {
-    return this.currentSortMode;
+  getFileSortMode(): FileSortMode {
+    return this.currentFileSortMode;
   }
 
   /**

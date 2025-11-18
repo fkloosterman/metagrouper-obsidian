@@ -3,7 +3,7 @@ import { VaultIndexer } from "./indexer/vault-indexer";
 import { TreeBuilder } from "./tree/tree-builder";
 import { TreeComponent } from "./components/tree-component";
 import { TreeToolbar } from "./components/tree-toolbar";
-import { ViewState, SortMode } from "./types/view-state";
+import { ViewState, SortMode, FileSortMode } from "./types/view-state";
 import { SearchQueryBuilder } from "./utils/search-query-builder";
 import { ObsidianSearch } from "./utils/obsidian-search";
 import { TreeNode } from "./types/tree-node";
@@ -110,8 +110,8 @@ export class TagTreeView extends ItemView {
       const toolbarContainer = container.createDiv("tag-tree-toolbar-container");
       this.toolbar = new TreeToolbar(
         {
-          onSortChange: (mode: SortMode) => {
-            this.handleSortChange(mode);
+          onFileSortChange: (mode: FileSortMode) => {
+            this.handleFileSortChange(mode);
           },
           onCollapseAll: () => {
             this.treeComponent.collapseAll();
@@ -133,7 +133,7 @@ export class TagTreeView extends ItemView {
             this.handleViewChange(viewName);
           },
         },
-        this.treeComponent.getSortMode(),
+        this.treeComponent.getFileSortMode(),
         this.treeComponent.getFileVisibility(),
         this.plugin.settings.savedViews,
         this.currentViewName
@@ -176,15 +176,15 @@ export class TagTreeView extends ItemView {
   }
 
   /**
-   * Handle sort mode change from toolbar
+   * Handle file sort mode change from toolbar
    */
-  private handleSortChange(mode: SortMode): void {
+  private handleFileSortChange(mode: FileSortMode): void {
     if (!this.treeBuilder || !this.treeComponent) {
       return;
     }
 
-    // Update tree component sort mode
-    this.treeComponent.setSortMode(mode);
+    // Update tree component file sort mode
+    this.treeComponent.setFileSortMode(mode);
 
     // Rebuild and re-render tree
     const container = this.containerEl.querySelector(
@@ -221,8 +221,8 @@ export class TagTreeView extends ItemView {
       if (viewState.showFiles !== undefined) {
         this.treeComponent.setFileVisibility(viewState.showFiles);
       }
-      if (viewState.sortMode) {
-        this.treeComponent.setSortMode(viewState.sortMode);
+      if (viewState.fileSortMode) {
+        this.treeComponent.setFileSortMode(viewState.fileSortMode);
       }
     } else {
       // No saved state, use defaults
@@ -264,7 +264,8 @@ export class TagTreeView extends ItemView {
 
     // Build tree from hierarchy configuration
     // TreeBuilder will internally optimize for simple tag hierarchies (depth=-1)
-    const tree = this.treeBuilder.buildFromHierarchy(viewConfig);
+    const viewState = this.plugin.settings.viewStates[this.currentViewName];
+    const tree = this.treeBuilder.buildFromHierarchy(viewConfig, viewState);
 
     // Render tree
     this.treeComponent.render(tree, container);
@@ -339,7 +340,7 @@ export class TagTreeView extends ItemView {
     const state: ViewState = {
       expandedNodes: Array.from(this.treeComponent.getExpandedNodes()),
       showFiles: this.treeComponent.getFileVisibility(),
-      sortMode: this.treeComponent.getSortMode(),
+      fileSortMode: this.treeComponent.getFileSortMode(),
       scrollPosition: treeContent?.scrollTop ?? 0,
     };
 
@@ -370,9 +371,9 @@ export class TagTreeView extends ItemView {
       this.treeComponent.setFileVisibility(state.showFiles);
     }
 
-    // Restore sort mode
-    if (state.sortMode) {
-      this.treeComponent.setSortMode(state.sortMode);
+    // Restore file sort mode
+    if (state.fileSortMode) {
+      this.treeComponent.setFileSortMode(state.fileSortMode);
     }
 
     // Restore scroll position (with a small delay to ensure DOM is ready)

@@ -3,6 +3,7 @@ import { TagTreeView, VIEW_TYPE_TAG_TREE } from "./view";
 import {
   TagTreeSettings,
   DEFAULT_SETTINGS,
+  migrateSettings,
 } from "./settings/plugin-settings";
 import { TagTreeSettingsTab } from "./settings/settings-tab";
 import { TagTreeCodeblockProcessor } from "./codeblock/codeblock-processor";
@@ -80,6 +81,12 @@ export default class TagTreePlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+    // Migrate settings from old schema to new schema
+    migrateSettings(this.settings);
+
+    // Save migrated settings
+    await this.saveSettings();
   }
 
   async saveSettings() {
