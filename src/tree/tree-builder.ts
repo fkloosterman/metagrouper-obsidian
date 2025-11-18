@@ -80,6 +80,7 @@ export class TreeBuilder {
       // Create the tag node (without files yet)
       const node = createTagNode(tag, [], depth, {
         parentId: parent?.id,
+        levelIndex: 0, // All tags in buildFromTags are at hierarchy level 0
       });
       nodeMap.set(tag, node);
 
@@ -289,11 +290,14 @@ export class TreeBuilder {
         fileNodes.push(child);
       } else {
         tagPropertyNodes.push(child);
-        // Store level index in node metadata for context menu
+        // Ensure levelIndex is set in metadata (should be set during tree building)
+        // If not set, fall back to currentLevelIndex for backwards compatibility
         if (!child.metadata) {
           child.metadata = {};
         }
-        child.metadata.levelIndex = currentLevelIndex;
+        if (child.metadata.levelIndex === undefined) {
+          child.metadata.levelIndex = currentLevelIndex;
+        }
       }
     }
 
@@ -316,11 +320,10 @@ export class TreeBuilder {
 
     // Recursively sort children of tag/property nodes
     for (const child of tagPropertyNodes) {
-      // Determine next level index
-      // For tag levels with depth > 1 or -1, we stay at the same level index
-      // until we exhaust the tag depth
-      const nextLevelIndex = this.getNextLevelIndex(child, currentLevelIndex, config);
-      this.sortTreeRecursiveNew(child, config, viewState, nextLevelIndex);
+      // Read the child's levelIndex from metadata (set during tree building)
+      // This is more reliable than trying to compute it
+      const childLevelIndex = child.metadata?.levelIndex ?? currentLevelIndex;
+      this.sortTreeRecursiveNew(child, config, viewState, childLevelIndex);
     }
   }
 
@@ -660,6 +663,7 @@ export class TreeBuilder {
           label: tagLevel.label,
           showFullPath: tagLevel.showFullPath,
           parentId,
+          levelIndex: depth, // Set hierarchy level index
         });
       } else {
         const propLevel = level as PropertyHierarchyLevel;
@@ -667,6 +671,7 @@ export class TreeBuilder {
           label: propLevel.label,
           showPropertyName: propLevel.showPropertyName,
           parentId,
+          levelIndex: depth, // Set hierarchy level index
         });
       }
 
@@ -809,6 +814,7 @@ export class TreeBuilder {
         label: tagLevel.label,
         showFullPath: tagLevel.showFullPath,
         parentId,
+        levelIndex: hierarchyDepth, // Set hierarchy level index (not treeDepth!)
       });
 
       // Check if there are more sub-depths to process
@@ -1026,6 +1032,7 @@ export class TreeBuilder {
             label: tagLvl.label,
             showFullPath: tagLvl.showFullPath,
             parentId,
+            levelIndex: hierarchyDepth + 1, // Set hierarchy level index
           });
         } else {
           const propLvl = nextLevel as PropertyHierarchyLevel;
@@ -1038,6 +1045,7 @@ export class TreeBuilder {
               label: propLvl.label,
               showPropertyName: propLvl.showPropertyName,
               parentId,
+              levelIndex: hierarchyDepth + 1, // Set hierarchy level index
             }
           );
         }

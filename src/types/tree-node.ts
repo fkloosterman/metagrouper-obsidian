@@ -58,6 +58,7 @@ export function createTagNode(
     label?: string;
     showFullPath?: boolean;
     parentId?: string;
+    levelIndex?: number;
   }
 ): TreeNode {
   const segments = tagPath.split("/");
@@ -92,7 +93,10 @@ export function createTagNode(
     depth,
     files,
     fileCount: files.length,
-    metadata: { tagPath },
+    metadata: {
+      tagPath,
+      levelIndex: options?.levelIndex,
+    },
   };
 }
 
@@ -108,6 +112,7 @@ export function createPropertyGroupNode(
     label?: string;
     showPropertyName?: boolean;
     parentId?: string;
+    levelIndex?: number;
   }
 ): TreeNode {
   let name: string;
@@ -137,7 +142,11 @@ export function createPropertyGroupNode(
     depth,
     files,
     fileCount: files.length,
-    metadata: { propertyKey, propertyValue },
+    metadata: {
+      propertyKey,
+      propertyValue,
+      levelIndex: options?.levelIndex,
+    },
   };
 }
 
