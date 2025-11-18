@@ -656,12 +656,7 @@ export class TreeBuilder {
     }
 
     // Single-depth grouping (original logic)
-    console.log(`[TagTree] buildLevelRecursive at depth ${depth}, level type=${level.type}, key=${level.key}, files.length=${files.length}, files:`, files.map(f => f.basename));
     const groups = this.groupFilesByLevel(files, level, parentTagPath);
-    console.log(`[TagTree] After grouping at depth ${depth}: ${groups.size} groups`);
-    for (const [key, groupFiles] of groups.entries()) {
-      console.log(`  Group "${key}": ${groupFiles.length} files:`, groupFiles.map(f => f.basename));
-    }
 
     // Track which files were successfully grouped
     const groupedFiles = new Set<TFile>();
@@ -671,7 +666,6 @@ export class TreeBuilder {
 
     // Find files that didn't match this level (weren't grouped)
     const unmatchedFiles = files.filter(f => !groupedFiles.has(f));
-    console.log(`[TagTree] At depth ${depth}: ${unmatchedFiles.length} files did not match this level:`, unmatchedFiles.map(f => f.basename));
 
     // Create nodes for each group
     const children: TreeNode[] = [];
@@ -710,9 +704,7 @@ export class TreeBuilder {
           level.type === "tag" ? groupKey : parentTagPath;
 
         for (const file of groupFiles) {
-          const matches = this.fileMatchesLevel(file, nextLevel, nextParentTagPath);
-          console.log(`[TagTree] File "${file.basename}" at depth ${depth}: matches next level (${nextLevel.type} ${nextLevel.key})? ${matches}`);
-          if (matches) {
+          if (this.fileMatchesLevel(file, nextLevel, nextParentTagPath)) {
             filesForNextLevel.push(file);
           } else {
             filesForThisLevel.push(file);
@@ -725,16 +717,12 @@ export class TreeBuilder {
 
       // Add file nodes for files that end at this level
       // Only add if showPartialMatches=true OR this is the last hierarchy level
-      console.log(`[TagTree] At depth ${depth}, filesForThisLevel.length=${filesForThisLevel.length}, showPartialMatches=${showPartialMatches}, isLastLevel=${depth + 1 >= levels.length}`);
       if (showPartialMatches || depth + 1 >= levels.length) {
-        console.log(`[TagTree] Adding ${filesForThisLevel.length} files at depth ${depth}:`, filesForThisLevel.map(f => f.basename));
         for (const file of filesForThisLevel) {
           const fileNode = createFileNode(file, treeDepth + 1, node.id);
           fileNode.parent = node;
           node.children.push(fileNode);
         }
-      } else {
-        console.log(`[TagTree] NOT adding ${filesForThisLevel.length} files at depth ${depth} (showPartialMatches=false and not last level)`);
       }
 
       // Recursively build next level for files that continue
@@ -743,7 +731,6 @@ export class TreeBuilder {
         const newParentTagPath =
           level.type === "tag" ? groupKey : parentTagPath;
 
-        console.log(`[TagTree] Recursing from depth ${depth} to ${depth + 1} with ${filesForNextLevel.length} files:`, filesForNextLevel.map(f => f.basename));
         const childTreeNode = this.buildLevelRecursive(
           filesForNextLevel,
           levels,
@@ -765,9 +752,7 @@ export class TreeBuilder {
 
     // Add unmatched files as partial matches if enabled
     // These are files that matched previous levels but don't match this level
-    console.log(`[TagTree] At depth ${depth}, unmatchedFiles.length=${unmatchedFiles.length}, showPartialMatches=${showPartialMatches}`);
     if (showPartialMatches && unmatchedFiles.length > 0) {
-      console.log(`[TagTree] Adding ${unmatchedFiles.length} UNMATCHED files at depth ${depth}:`, unmatchedFiles.map(f => f.basename));
       // Add them as file nodes directly to the children
       for (const file of unmatchedFiles) {
         const fileNode = createFileNode(file, treeDepth, parentId);
