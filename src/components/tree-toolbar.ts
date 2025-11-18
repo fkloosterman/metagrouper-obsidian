@@ -130,10 +130,7 @@ export class TreeToolbar {
         if (this.callbacks.onViewChange) {
           this.callbacks.onViewChange(value);
         }
-        // Re-render toolbar to update header with new view name
-        if (this.container) {
-          this.render(this.container.parentElement!);
-        }
+        // Note: Header will be updated when setCurrentViewName is called externally
       });
   }
 
@@ -287,7 +284,7 @@ export class TreeToolbar {
 
     // Re-render toolbar to update dropdown
     if (this.container) {
-      this.render(this.container.parentElement!);
+      this.render(this.container);
     }
   }
 
@@ -310,7 +307,7 @@ export class TreeToolbar {
 
     // Re-render toolbar to update toggle
     if (this.container) {
-      this.render(this.container.parentElement!);
+      this.render(this.container);
     }
   }
 
@@ -336,9 +333,9 @@ export class TreeToolbar {
 
     this.currentViewName = viewName;
 
-    // Re-render toolbar to update view dropdown
+    // Re-render toolbar to update view dropdown and header
     if (this.container) {
-      this.render(this.container.parentElement!);
+      this.render(this.container);
     }
   }
 }
