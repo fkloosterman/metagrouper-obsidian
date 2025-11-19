@@ -15,6 +15,7 @@ export interface TreeToolbarCallbacks {
   onViewChange?: (viewName: string) => void;
   onRefreshTree?: () => void;
   onFilterOverrideToggle?: (enabled: boolean) => void;
+  onQuickFilterChange?: () => void; // Called when a quick filter value changes
 }
 
 /**
@@ -348,16 +349,185 @@ export class TreeToolbar {
       badge.style.fontSize = "0.85em";
       badge.style.fontWeight = "600";
 
-      // Filter description
-      const desc = filterEl.createSpan({
-        text: this.getFilterDescription(labeledFilter.filter),
-        cls: "setting-item-description"
-      });
-      desc.style.fontSize = "0.9em";
-
-      // TODO: Add interactive controls here based on filter type
-      // For now, this shows the filter info - interactive controls can be added later
+      // Add interactive controls based on filter type
+      this.renderQuickFilterControl(filterEl, labeledFilter);
     });
+  }
+
+  /**
+   * Render interactive control for a specific filter
+   */
+  private renderQuickFilterControl(container: HTMLElement, labeledFilter: any): void {
+    const filter = labeledFilter.filter;
+
+    switch (filter.type) {
+      case "tag": {
+        // Tag filter: show tag name and match mode dropdown
+        const tagInput = container.createEl("input", { type: "text" });
+        tagInput.value = filter.tag || "";
+        tagInput.placeholder = "Tag";
+        tagInput.style.width = "120px";
+        tagInput.style.marginRight = "4px";
+        tagInput.addEventListener("change", () => {
+          filter.tag = tagInput.value;
+          this.onFilterChanged();
+        });
+
+        const matchMode = new DropdownComponent(container);
+        matchMode.addOption("exact", "Exact");
+        matchMode.addOption("prefix", "Prefix");
+        matchMode.addOption("contains", "Contains");
+        matchMode.setValue(filter.matchMode || "prefix");
+        matchMode.onChange((value) => {
+          filter.matchMode = value as any;
+          this.onFilterChanged();
+        });
+        matchMode.selectEl.style.width = "auto";
+        break;
+      }
+
+      case "property-exists": {
+        // Property exists: show property name and toggle for exists/not exists
+        const propInput = container.createEl("input", { type: "text" });
+        propInput.value = filter.property || "";
+        propInput.placeholder = "Property";
+        propInput.style.width = "120px";
+        propInput.style.marginRight = "4px";
+        propInput.addEventListener("change", () => {
+          filter.property = propInput.value;
+          this.onFilterChanged();
+        });
+
+        const toggle = new ToggleComponent(container);
+        toggle.setValue(!filter.negate); // !negate = exists
+        toggle.setTooltip(filter.negate ? "Does not exist" : "Exists");
+        toggle.onChange((value) => {
+          filter.negate = !value; // true = exists, so negate = false
+          toggle.setTooltip(filter.negate ? "Does not exist" : "Exists");
+          this.onFilterChanged();
+        });
+        break;
+      }
+
+      case "property-value": {
+        // Property value: show property name and value based on operator
+        const propInput = container.createEl("input", { type: "text" });
+        propInput.value = filter.property || "";
+        propInput.placeholder = "Property";
+        propInput.style.width = "100px";
+        propInput.style.marginRight = "4px";
+        propInput.addEventListener("change", () => {
+          filter.property = propInput.value;
+          this.onFilterChanged();
+        });
+
+        // For boolean operators, show toggle
+        if (filter.operator === "is-true" || filter.operator === "is-false") {
+          const toggle = new ToggleComponent(container);
+          toggle.setValue(filter.operator === "is-true");
+          toggle.setTooltip(filter.operator === "is-true" ? "Is true" : "Is false");
+          toggle.onChange((value) => {
+            filter.operator = value ? "is-true" : "is-false";
+            toggle.setTooltip(filter.operator === "is-true" ? "Is true" : "Is false");
+            this.onFilterChanged();
+          });
+        } else {
+          // For other operators, show value input
+          const operatorEl = container.createSpan({ text: ` ${this.getOperatorSymbol(filter.operator)} ` });
+          operatorEl.style.marginRight = "4px";
+
+          const valueInput = container.createEl("input", { type: "text" });
+          valueInput.value = String(filter.value || "");
+          valueInput.placeholder = "Value";
+          valueInput.style.width = "80px";
+          valueInput.addEventListener("change", () => {
+            filter.value = valueInput.value;
+            this.onFilterChanged();
+          });
+        }
+        break;
+      }
+
+      case "bookmark": {
+        // Bookmark filter: toggle for is/is not bookmarked
+        const toggle = new ToggleComponent(container);
+        toggle.setValue(filter.isBookmarked);
+        toggle.setTooltip(filter.isBookmarked ? "Is bookmarked" : "Is not bookmarked");
+        toggle.onChange((value) => {
+          filter.isBookmarked = value;
+          toggle.setTooltip(filter.isBookmarked ? "Is bookmarked" : "Is not bookmarked");
+          this.onFilterChanged();
+        });
+        break;
+      }
+
+      case "file-path": {
+        // File path: show pattern input
+        const patternInput = container.createEl("input", { type: "text" });
+        patternInput.value = filter.pattern || "";
+        patternInput.placeholder = "Pattern";
+        patternInput.style.width = "150px";
+        patternInput.style.marginRight = "4px";
+        patternInput.addEventListener("change", () => {
+          filter.pattern = patternInput.value;
+          this.onFilterChanged();
+        });
+
+        const matchMode = new DropdownComponent(container);
+        matchMode.addOption("wildcard", "Wildcard");
+        matchMode.addOption("regex", "Regex");
+        matchMode.setValue(filter.matchMode || "wildcard");
+        matchMode.onChange((value) => {
+          filter.matchMode = value as any;
+          this.onFilterChanged();
+        });
+        matchMode.selectEl.style.width = "auto";
+        break;
+      }
+
+      default: {
+        // For other filter types, just show description (read-only for now)
+        const desc = container.createSpan({
+          text: this.getFilterDescription(filter),
+          cls: "setting-item-description"
+        });
+        desc.style.fontSize = "0.9em";
+        desc.style.marginLeft = "4px";
+        break;
+      }
+    }
+  }
+
+  /**
+   * Get a short operator symbol for display
+   */
+  private getOperatorSymbol(operator: string): string {
+    const symbolMap: Record<string, string> = {
+      "equals": "=",
+      "not-equals": "≠",
+      "contains": "∋",
+      "not-contains": "∌",
+      "starts-with": "starts",
+      "ends-with": "ends",
+      "number-eq": "=",
+      "number-lt": "<",
+      "number-lte": "≤",
+      "number-gt": ">",
+      "number-gte": "≥",
+      "date-before": "before",
+      "date-after": "after",
+      "date-eq": "on",
+    };
+    return symbolMap[operator] || operator;
+  }
+
+  /**
+   * Called when a quick filter value changes
+   */
+  private onFilterChanged(): void {
+    if (this.callbacks.onQuickFilterChange) {
+      this.callbacks.onQuickFilterChange();
+    }
   }
 
   /**

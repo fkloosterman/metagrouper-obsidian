@@ -143,6 +143,9 @@ export class TagTreeView extends ItemView {
           onFilterOverrideToggle: (enabled: boolean) => {
             this.handleFilterOverrideToggle(enabled);
           },
+          onQuickFilterChange: () => {
+            this.handleQuickFilterChange();
+          },
         },
         this.treeComponent.getFileSortMode(),
         this.treeComponent.getFileVisibility(),
@@ -389,6 +392,26 @@ export class TagTreeView extends ItemView {
       if (container) {
         this.buildAndRenderTree(container);
       }
+    }
+  }
+
+  /**
+   * Handle quick filter value changes from toolbar
+   */
+  private handleQuickFilterChange(): void {
+    if (!this.treeBuilder || !this.treeComponent) {
+      return;
+    }
+
+    // Save settings (filter values were modified in the config object)
+    this.plugin.saveSettings();
+
+    // Rebuild tree to apply new filter values
+    const container = this.containerEl.querySelector(
+      ".tag-tree-content"
+    ) as HTMLElement;
+    if (container) {
+      this.buildAndRenderTree(container);
     }
   }
 

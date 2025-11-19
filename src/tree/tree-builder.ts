@@ -43,7 +43,8 @@ export class TreeBuilder {
     rootTag?: string,
     sortMode: SortMode = "alpha-asc",
     config?: HierarchyConfig,
-    viewState?: ViewState
+    viewState?: ViewState,
+    filteredFiles?: TFile[] // Optional: pre-filtered file set
   ): TreeNode {
     // Get all tags (filtered by root if specified)
     const allTags = rootTag
@@ -95,7 +96,7 @@ export class TreeBuilder {
     }
 
     // Add file nodes to leaf tag nodes
-    this.addFileNodes(nodeMap);
+    this.addFileNodes(nodeMap, filteredFiles);
 
     // Calculate aggregate file counts BEFORE sorting
     // (needed for count-based sorting to work correctly)
@@ -116,8 +117,14 @@ export class TreeBuilder {
   /**
    * Add file nodes as children to tag nodes
    * Files are added to the deepest (most specific) tag they have
+   *
+   * @param nodeMap - Map of tag paths to tree nodes
+   * @param filteredFiles - Optional pre-filtered file set. If provided, only files in this set will be added.
    */
-  private addFileNodes(nodeMap: Map<string, TreeNode>): void {
+  private addFileNodes(nodeMap: Map<string, TreeNode>, filteredFiles?: TFile[]): void {
+    // Create a Set for fast lookup if filtered files provided
+    const filteredFileSet = filteredFiles ? new Set(filteredFiles) : null;
+
     // For each tag node, get files that have exactly that tag
     for (const [tagPath, node] of nodeMap.entries()) {
       if (tagPath === "root") continue;
@@ -130,6 +137,11 @@ export class TreeBuilder {
       const filesToAdd: TFile[] = [];
 
       for (const file of filesWithTag) {
+        // Skip files not in filtered set (if filtering is active)
+        if (filteredFileSet && !filteredFileSet.has(file)) {
+          continue;
+        }
+
         const fileTags = this.indexer.getFileTags(file);
 
         // Find the most specific tag for this file that starts with tagPath
@@ -515,18 +527,6 @@ export class TreeBuilder {
    * @returns Root tree node with hierarchical structure
    */
   buildFromHierarchy(config: HierarchyConfig, viewState?: ViewState): TreeNode {
-    // Optimization: For simple single-level tag hierarchies with unlimited depth,
-    // use buildFromTags which is more efficient for full nested hierarchies
-    if (this.shouldUseBuildFromTags(config)) {
-      const tagLevel = config.levels[0] as TagHierarchyLevel;
-      return this.buildFromTags(
-        tagLevel.key || undefined,
-        config.defaultNodeSortMode || "alpha-asc",
-        config,
-        viewState
-      );
-    }
-
     // Get initial file set (optionally filtered by filters)
     const allFiles = this.indexer.getAllFiles();
     let files: TFile[];
@@ -537,6 +537,19 @@ export class TreeBuilder {
       files = allFiles.filter((file) => filterEvaluator.evaluateFilters(file, config.filters));
     } else {
       files = allFiles;
+    }
+
+    // Optimization: For simple single-level tag hierarchies with unlimited depth,
+    // use buildFromTags which is more efficient for full nested hierarchies
+    if (this.shouldUseBuildFromTags(config)) {
+      const tagLevel = config.levels[0] as TagHierarchyLevel;
+      return this.buildFromTags(
+        tagLevel.key || undefined,
+        config.defaultNodeSortMode || "alpha-asc",
+        config,
+        viewState,
+        files // Pass filtered files to buildFromTags
+      );
     }
 
     // Build tree recursively through hierarchy levels

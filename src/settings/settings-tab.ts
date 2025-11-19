@@ -1400,21 +1400,57 @@ class ViewEditorModal extends Modal {
     // Detect property type and show appropriate operators
     const propertyType = this.detectPropertyType(filter.property);
 
-    // If we detected a type, always use it (prefer detected over existing)
-    if (propertyType) {
+    // Check for type mismatch between saved filter and actual property
+    if (propertyType && filter.valueType && propertyType !== filter.valueType) {
+      // Type mismatch detected - show warning
+      const warningEl = setting.descEl.createDiv({ cls: "tag-tree-filter-warning" });
+      warningEl.style.color = "var(--text-warning)";
+      warningEl.style.marginTop = "var(--size-4-1)";
+      warningEl.createEl("strong", { text: "⚠️ Type mismatch: " });
+      warningEl.appendText(`Property "${filter.property}" is type "${propertyType}" but filter uses type "${filter.valueType}". `);
+
+      const updateBtn = warningEl.createEl("a", { text: "Update to actual type", href: "#" });
+      updateBtn.style.marginLeft = "var(--size-2-1)";
+      updateBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        filter.valueType = propertyType as any;
+        this.renderEditor(this.contentEl);
+      });
+
+      const keepBtn = warningEl.createEl("a", { text: "Keep current type", href: "#" });
+      keepBtn.style.marginLeft = "var(--size-2-1)";
+      keepBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        // Just dismiss the warning by re-rendering without the type detection
+        // Set a flag to prevent showing warning again
+        (filter as any)._typeMismatchAcknowledged = true;
+        this.renderEditor(this.contentEl);
+      });
+    }
+
+    // If we detected a type and no mismatch warning was acknowledged, use it
+    if (propertyType && !(filter as any)._typeMismatchAcknowledged) {
       filter.valueType = propertyType as any;
     }
 
     // Add type selector for unregistered properties
     if (!propertyType && filter.property) {
+      // Show message that property doesn't exist
+      const infoEl = setting.descEl.createDiv({ cls: "tag-tree-filter-info" });
+      infoEl.style.color = "var(--text-muted)";
+      infoEl.style.marginTop = "var(--size-4-1)";
+      infoEl.style.fontSize = "0.9em";
+      infoEl.createEl("em", { text: "ℹ️ Property not found in vault. Please select a type:" });
+
       setting.addDropdown(dropdown => {
         dropdown
+          .addOption("", "Select type...")
           .addOption("string", "String")
           .addOption("number", "Number")
           .addOption("date", "Date")
           .addOption("checkbox", "Boolean")
           .addOption("tags", "List")
-          .setValue(filter.valueType || "string")
+          .setValue(filter.valueType || "")
           .onChange(value => {
             filter.valueType = value as any;
             // Re-render to update operators when type changes
@@ -1425,7 +1461,14 @@ class ViewEditorModal extends Modal {
     }
 
     // Determine which operators to show
-    const effectiveType = propertyType || filter.valueType || "string";
+    const effectiveType = propertyType || filter.valueType;
+
+    // If no type is selected yet, don't show operators or value inputs
+    if (!effectiveType || effectiveType === "") {
+      setting.setDesc("Please select a property type to continue");
+      return;
+    }
+
     let operators = STRING_OPERATORS;
 
     if (effectiveType === "number") {
