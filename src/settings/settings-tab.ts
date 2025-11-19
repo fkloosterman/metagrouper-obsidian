@@ -1258,6 +1258,12 @@ class ViewEditorModal extends Modal {
    */
   private renderLabeledFilter(container: HTMLElement, labeledFilter: LabeledFilter, index: number): void {
     const filter = labeledFilter.filter;
+
+    // Clean up negate field from filters that don't use it (legacy cleanup)
+    if (filter.type !== "property-exists" && filter.negate !== undefined) {
+      delete filter.negate;
+    }
+
     const setting = new Setting(container);
 
     // Label badge
@@ -1306,7 +1312,7 @@ class ViewEditorModal extends Modal {
 
     // Show in toolbar toggle
     setting.addExtraButton(button => {
-      const showInToolbar = labeledFilter.showInToolbar !== false; // Default true
+      const showInToolbar = labeledFilter.showInToolbar === true; // Default false (hidden)
       button
         .setIcon(showInToolbar ? "eye" : "eye-off")
         .setTooltip(showInToolbar ? "Hide from toolbar explanation" : "Show in toolbar explanation")
@@ -1799,6 +1805,7 @@ class ViewEditorModal extends Modal {
         label,
         filter: newFilter,
         enabled: true,
+        showInToolbar: false, // Default to hidden
       };
       this.workingView.filters.filters.push(labeledFilter);
       this.renderEditor(this.contentEl);
@@ -1813,14 +1820,14 @@ class ViewEditorModal extends Modal {
     const baseFilter = {
       id: generateFilterId(),
       enabled: true,
-      negate: false,
     };
 
     switch (type) {
       case "tag":
         return { ...baseFilter, type: "tag", tag: "", matchMode: "prefix" } as TagFilter;
       case "property-exists":
-        return { ...baseFilter, type: "property-exists", property: "" } as PropertyExistsFilter;
+        // PropertyExistsFilter uses negate field for "exists" vs "does not exist"
+        return { ...baseFilter, type: "property-exists", property: "", negate: false } as PropertyExistsFilter;
       case "property-value":
         return { ...baseFilter, type: "property-value", property: "", operator: "equals", value: "" } as PropertyValueFilter;
       case "file-path":

@@ -77,11 +77,14 @@ export class FilterEvaluator {
     const filterResults = new Map<string, boolean>();
     for (const labeledFilter of enabledFilters) {
       const result = this.evaluateFilter(file, labeledFilter.filter);
+      console.log(`[TagTree] Filter ${labeledFilter.label} (${labeledFilter.filter.type}): ${result}, negate: ${labeledFilter.filter.negate}, file: ${file.basename}`);
       filterResults.set(labeledFilter.label, result);
     }
 
     // Evaluate expression with filter results
-    return this.expressionEvaluator.evaluate(parseResult.ast, filterResults);
+    const finalResult = this.expressionEvaluator.evaluate(parseResult.ast, filterResults);
+    console.log(`[TagTree] Expression "${expression}" result: ${finalResult}, file: ${file.basename}`);
+    return finalResult;
   }
 
   /**

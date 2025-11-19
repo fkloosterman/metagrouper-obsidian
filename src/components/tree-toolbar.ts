@@ -33,6 +33,7 @@ export class TreeToolbar {
   private isCollapsed: boolean = false;
   private filterOverridesEnabled: boolean = false;
   private filterExplanationCollapsed: boolean = true;
+  private fileCount: number = 0; // Number of files after filtering
 
   // File sort mode labels for dropdown
   private readonly fileSortModeLabels: Record<FileSortMode, string> = {
@@ -342,6 +343,12 @@ export class TreeToolbar {
 
     const filters = this.currentViewConfig.filters;
 
+    // Show file count
+    content.createEl("div", {
+      text: `Files: ${this.fileCount}`,
+      cls: "tag-tree-filter-explanation-mode"
+    }).style.fontWeight = "600";
+
     // Show expression
     const expression = filters.expression?.trim() || "";
     if (expression) {
@@ -358,11 +365,11 @@ export class TreeToolbar {
       }).style.fontFamily = "monospace";
     }
 
-    // Show each filter (only if showInToolbar is not false and filter is enabled)
+    // Show each filter (only if showInToolbar is true and filter is enabled)
     const filtersListEl = content.createEl("ul");
     filters.filters.forEach((labeledFilter) => {
       if (labeledFilter.enabled === false) return;
-      if (labeledFilter.showInToolbar === false) return; // Hide if explicitly set to false
+      if (labeledFilter.showInToolbar !== true) return; // Only show if explicitly set to true
 
       const filterText = `${labeledFilter.label}: ${this.getFilterDescription(labeledFilter.filter as any)}`;
       filtersListEl.createEl("li", { text: filterText });
@@ -373,29 +380,31 @@ export class TreeToolbar {
    * Get human-readable description of a filter
    */
   private getFilterDescription(filter: any): string {
-    const negate = filter.negate ? "NOT " : "";
-
     switch (filter.type) {
       case "tag":
-        return `${negate}Tag ${filter.matchMode} "${filter.tag}"`;
+        return `Tag ${filter.matchMode} "${filter.tag}"`;
       case "property-exists":
-        return `${negate}Has property "${filter.property}"`;
-      case "property-value":
-        return `${negate}Property "${filter.property}" ${filter.operator} ${filter.value || ""}`;
+        return filter.negate ? `Does not have property "${filter.property}"` : `Has property "${filter.property}"`;
+      case "property-value": {
+        const operatorText = filter.operator === "is-true" ? "is true" :
+                             filter.operator === "is-false" ? "is false" :
+                             filter.operator;
+        return `Property "${filter.property}" ${operatorText}${filter.value !== undefined && filter.value !== "" ? " " + filter.value : ""}`;
+      }
       case "file-path":
-        return `${negate}Path ${filter.matchMode} "${filter.pattern}"`;
+        return `Path ${filter.matchMode} "${filter.pattern}"`;
       case "file-size":
-        return `${negate}Size ${filter.operator} ${filter.value}${filter.unit || "B"}`;
+        return `Size ${filter.operator} ${filter.value}B`;
       case "file-ctime":
-        return `${negate}Created ${filter.operator} ${filter.value}`;
+        return `Created ${filter.operator} ${filter.value}`;
       case "file-mtime":
-        return `${negate}Modified ${filter.operator} ${filter.value}`;
+        return `Modified ${filter.operator} ${filter.value}`;
       case "link-count":
-        return `${negate}${filter.linkType} ${filter.operator} ${filter.value}`;
+        return `${filter.linkType} ${filter.operator} ${filter.value}`;
       case "bookmark":
-        return `${negate}Bookmarked`;
+        return filter.isBookmarked ? "Is bookmarked" : "Is not bookmarked";
       default:
-        return `${negate}Unknown filter`;
+        return "Unknown filter";
     }
   }
 
@@ -503,6 +512,22 @@ export class TreeToolbar {
     this.currentViewConfig = viewConfig;
 
     // Re-render toolbar to update filter controls
+    if (this.container) {
+      this.render(this.container);
+    }
+  }
+
+  /**
+   * Update the file count (number of files after filtering)
+   */
+  setFileCount(count: number): void {
+    if (this.fileCount === count) {
+      return;
+    }
+
+    this.fileCount = count;
+
+    // Re-render toolbar to update file count display
     if (this.container) {
       this.render(this.container);
     }
