@@ -1444,9 +1444,9 @@ class ViewEditorModal extends Modal {
       operators = NUMBER_OPERATORS;
     } else if (effectiveType === "date" || effectiveType === "datetime") {
       operators = DATE_OPERATORS;
-    } else if (effectiveType === "checkbox") {
+    } else if (effectiveType === "boolean" || effectiveType === "checkbox") {
       operators = BOOLEAN_OPERATORS;
-    } else if (effectiveType === "tags" || effectiveType === "aliases") {
+    } else if (effectiveType === "tags" || effectiveType === "aliases" || effectiveType === "array") {
       operators = ARRAY_OPERATORS;
     }
 
