@@ -331,16 +331,99 @@ export class TreeToolbar {
     section.style.borderRadius = "var(--radius-s)";
     section.style.marginBottom = "var(--size-4-2)";
 
+    // Show filter expression with highlighted quick filter labels
+    if (this.currentViewConfig?.filters) {
+      this.renderFilterExpression(section, interactiveFilters);
+    }
+
     // Title
     const title = section.createEl("div", { text: "Quick Filters" });
     title.style.fontWeight = "600";
     title.style.marginBottom = "var(--size-4-2)";
+    title.style.marginTop = "var(--size-4-3)";
     title.style.fontSize = "0.9em";
 
     // Render each filter as a row
     interactiveFilters.forEach((labeledFilter) => {
       this.renderQuickFilterRow(section, labeledFilter);
     });
+  }
+
+  /**
+   * Render the filter expression with highlighted quick filter labels
+   */
+  private renderFilterExpression(container: HTMLElement, interactiveFilters: any[]): void {
+    const filters = this.currentViewConfig?.filters;
+    if (!filters) return;
+
+    const expression = filters.expression?.trim() || "";
+
+    // Create set of quick filter labels for easy lookup
+    const quickFilterLabels = new Set(interactiveFilters.map(f => f.label));
+
+    const expressionContainer = container.createDiv({ cls: "tag-tree-filter-expression" });
+    expressionContainer.style.marginBottom = "var(--size-4-2)";
+    expressionContainer.style.fontSize = "0.9em";
+
+    const label = expressionContainer.createSpan({ text: "Expression: " });
+    label.style.color = "var(--text-muted)";
+    label.style.marginRight = "var(--size-2-1)";
+
+    const expressionEl = expressionContainer.createSpan();
+    expressionEl.style.fontFamily = "var(--font-monospace)";
+
+    if (expression) {
+      // Parse expression and highlight quick filter labels
+      this.renderHighlightedExpression(expressionEl, expression, quickFilterLabels);
+    } else {
+      // Default to AND all
+      const allLabels = filters.filters
+        .filter(lf => lf.enabled !== false)
+        .map(lf => lf.label);
+
+      allLabels.forEach((label, index) => {
+        if (index > 0) {
+          expressionEl.createSpan({ text: " & " });
+        }
+        const labelEl = expressionEl.createSpan({ text: label });
+        if (quickFilterLabels.has(label)) {
+          labelEl.style.fontWeight = "700";
+          labelEl.style.color = "var(--interactive-accent)";
+        }
+      });
+
+      const defaultLabel = expressionEl.createSpan({ text: " (default)" });
+      defaultLabel.style.color = "var(--text-muted)";
+    }
+  }
+
+  /**
+   * Render expression with highlighted quick filter labels
+   */
+  private renderHighlightedExpression(container: HTMLElement, expression: string, quickFilterLabels: Set<string>): void {
+    // Parse expression character by character and highlight filter labels
+    let i = 0;
+    while (i < expression.length) {
+      const char = expression[i];
+
+      // Check if this is a filter label (A-Z)
+      if (/[A-Z]/.test(char)) {
+        const labelEl = container.createSpan({ text: char });
+        if (quickFilterLabels.has(char)) {
+          labelEl.style.fontWeight = "700";
+          labelEl.style.color = "var(--interactive-accent)";
+        }
+        i++;
+      } else {
+        // Other characters (operators, parens, spaces)
+        let text = "";
+        while (i < expression.length && !/[A-Z]/.test(expression[i])) {
+          text += expression[i];
+          i++;
+        }
+        container.createSpan({ text });
+      }
+    }
   }
 
   /**
@@ -418,19 +501,16 @@ export class TreeToolbar {
   }
 
   private renderTagFilterControls(container: HTMLElement, filter: any): void {
-    const tagInput = container.createEl("input", { type: "text", cls: "tag-tree-filter-input" });
-    tagInput.value = filter.tag || "";
-    tagInput.placeholder = "Tag";
-    tagInput.style.width = "150px";
-    tagInput.addEventListener("change", () => {
-      filter.tag = tagInput.value;
-      this.onFilterChanged();
-    });
+    // Show tag name as read-only label
+    const tagLabel = container.createSpan({ text: `"${filter.tag}"` });
+    tagLabel.style.fontWeight = "500";
+    tagLabel.style.marginRight = "var(--size-2-2)";
 
+    // Allow changing match mode only
     new DropdownComponent(container)
-      .addOption("prefix", "Prefix")
-      .addOption("exact", "Exact")
-      .addOption("contains", "Contains")
+      .addOption("prefix", "starts with")
+      .addOption("exact", "exactly matches")
+      .addOption("contains", "contains")
       .setValue(filter.matchMode || "prefix")
       .onChange((value) => {
         filter.matchMode = value as any;
@@ -439,15 +519,12 @@ export class TreeToolbar {
   }
 
   private renderPropertyExistsFilterControls(container: HTMLElement, filter: any): void {
-    const propInput = container.createEl("input", { type: "text", cls: "tag-tree-filter-input" });
-    propInput.value = filter.property || "";
-    propInput.placeholder = "Property";
-    propInput.style.width = "150px";
-    propInput.addEventListener("change", () => {
-      filter.property = propInput.value;
-      this.onFilterChanged();
-    });
+    // Show property name as read-only label
+    const propLabel = container.createSpan({ text: `Property "${filter.property}"` });
+    propLabel.style.fontWeight = "500";
+    propLabel.style.marginRight = "var(--size-2-2)";
 
+    // Allow changing exists/not-exists only
     new DropdownComponent(container)
       .addOption("exists", "exists")
       .addOption("not-exists", "does not exist")
@@ -459,16 +536,12 @@ export class TreeToolbar {
   }
 
   private renderPropertyValueFilterControls(container: HTMLElement, filter: any): void {
-    const propInput = container.createEl("input", { type: "text", cls: "tag-tree-filter-input" });
-    propInput.value = filter.property || "";
-    propInput.placeholder = "Property";
-    propInput.style.width = "120px";
-    propInput.addEventListener("change", () => {
-      filter.property = propInput.value;
-      this.onFilterChanged();
-    });
+    // Show property name as read-only label
+    const propLabel = container.createSpan({ text: `Property "${filter.property}"` });
+    propLabel.style.fontWeight = "500";
+    propLabel.style.marginRight = "var(--size-2-2)";
 
-    // For boolean operators, show toggle
+    // For boolean operators, show toggle (allow changing condition only)
     if (filter.operator === "is-true" || filter.operator === "is-false") {
       const label = container.createSpan({ text: "is" });
       label.style.marginRight = "var(--size-2-1)";
@@ -481,10 +554,11 @@ export class TreeToolbar {
           this.onFilterChanged();
         });
     } else {
-      // For other operators, show operator display and value input
+      // For other operators, show operator and value (allow changing condition only)
       const opLabel = container.createSpan({ text: this.getOperatorLabel(filter.operator) });
       opLabel.style.fontSize = "0.9em";
       opLabel.style.color = "var(--text-muted)";
+      opLabel.style.marginRight = "var(--size-2-1)";
 
       const valueInput = container.createEl("input", { type: "text", cls: "tag-tree-filter-input" });
       valueInput.value = String(filter.value || "");
@@ -498,18 +572,15 @@ export class TreeToolbar {
   }
 
   private renderFilePathFilterControls(container: HTMLElement, filter: any): void {
-    const patternInput = container.createEl("input", { type: "text", cls: "tag-tree-filter-input" });
-    patternInput.value = filter.pattern || "";
-    patternInput.placeholder = "Pattern";
-    patternInput.style.width = "200px";
-    patternInput.addEventListener("change", () => {
-      filter.pattern = patternInput.value;
-      this.onFilterChanged();
-    });
+    // Show pattern as read-only label
+    const patternLabel = container.createSpan({ text: `"${filter.pattern}"` });
+    patternLabel.style.fontWeight = "500";
+    patternLabel.style.marginRight = "var(--size-2-2)";
 
+    // Allow changing match mode only
     new DropdownComponent(container)
-      .addOption("wildcard", "Wildcard")
-      .addOption("regex", "Regex")
+      .addOption("wildcard", "wildcard")
+      .addOption("regex", "regex")
       .setValue(filter.matchMode || "wildcard")
       .onChange((value) => {
         filter.matchMode = value as any;
@@ -518,6 +589,10 @@ export class TreeToolbar {
   }
 
   private renderFileSizeFilterControls(container: HTMLElement, filter: any): void {
+    const sizeLabel = container.createSpan({ text: "Size" });
+    sizeLabel.style.marginRight = "var(--size-2-1)";
+
+    // Allow changing operator and value
     new DropdownComponent(container)
       .addOption("lt", "<")
       .addOption("lte", "≤")
@@ -540,6 +615,11 @@ export class TreeToolbar {
   }
 
   private renderFileDateFilterControls(container: HTMLElement, filter: any): void {
+    const dateType = filter.type === "file-ctime" ? "Created" : "Modified";
+    const typeLabel = container.createSpan({ text: dateType });
+    typeLabel.style.marginRight = "var(--size-2-1)";
+
+    // Allow changing operator and value
     new DropdownComponent(container)
       .addOption("on", "on")
       .addOption("before", "before")
@@ -565,15 +645,14 @@ export class TreeToolbar {
   }
 
   private renderLinkCountFilterControls(container: HTMLElement, filter: any): void {
-    new DropdownComponent(container)
-      .addOption("outlinks", "Outlinks")
-      .addOption("backlinks", "Backlinks")
-      .setValue(filter.linkType || "outlinks")
-      .onChange((value) => {
-        filter.linkType = value as any;
-        this.onFilterChanged();
-      });
+    // Show link type as read-only label
+    const linkTypeLabel = container.createSpan({
+      text: filter.linkType === "outlinks" ? "Outlinks" : "Backlinks"
+    });
+    linkTypeLabel.style.fontWeight = "500";
+    linkTypeLabel.style.marginRight = "var(--size-2-2)";
 
+    // Allow changing operator and value only
     new DropdownComponent(container)
       .addOption("lt", "<")
       .addOption("lte", "≤")
@@ -595,6 +674,10 @@ export class TreeToolbar {
   }
 
   private renderBookmarkFilterControls(container: HTMLElement, filter: any): void {
+    const bookmarkLabel = container.createSpan({ text: "File" });
+    bookmarkLabel.style.marginRight = "var(--size-2-1)";
+
+    // Allow changing is/is-not bookmarked
     new DropdownComponent(container)
       .addOption("is-bookmarked", "is bookmarked")
       .addOption("not-bookmarked", "is not bookmarked")
@@ -660,7 +743,11 @@ export class TreeToolbar {
     });
 
     const summary = details.createEl("summary");
-    summary.createSpan({ text: `Filters selected ${this.fileCount} files` });
+    summary.createSpan({ text: "Filter description" });
+
+    const fileCountEl = summary.createSpan({ text: ` (${this.fileCount} files)` });
+    fileCountEl.style.color = "var(--text-muted)";
+    fileCountEl.style.fontSize = "0.9em";
 
     const content = details.createDiv({ cls: "tag-tree-filter-explanation-content" });
 
@@ -671,24 +758,10 @@ export class TreeToolbar {
 
     const filters = this.currentViewConfig.filters;
 
-    // Show expression
-    const expression = filters.expression?.trim() || "";
-    if (expression) {
-      content.createEl("div", {
-        text: `Expression: ${expression}`,
-        cls: "tag-tree-filter-explanation-mode"
-      }).style.fontFamily = "monospace";
-    } else {
-      // Default to AND all
-      const labels = filters.filters.map(lf => lf.label).join(' & ');
-      content.createEl("div", {
-        text: `Expression: ${labels} (default)`,
-        cls: "tag-tree-filter-explanation-mode"
-      }).style.fontFamily = "monospace";
-    }
-
     // Show ALL filters (not just eye-selected ones)
     const filtersListEl = content.createEl("ul");
+    filtersListEl.style.marginTop = "var(--size-2-2)";
+
     filters.filters.forEach((labeledFilter) => {
       if (labeledFilter.enabled === false) return; // Skip disabled filters
 
