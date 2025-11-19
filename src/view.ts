@@ -464,9 +464,10 @@ export class TagTreeView extends ItemView {
     const viewState = this.plugin.settings.viewStates[this.currentViewName];
     const tree = this.treeBuilder.buildFromHierarchy(viewConfig, viewState);
 
-    // Update toolbar with file count
+    // Update toolbar with file count and current view config
     if (this.toolbar) {
       this.toolbar.setFileCount(tree.fileCount);
+      this.toolbar.setCurrentViewConfig(viewConfig);
     }
 
     // Render tree

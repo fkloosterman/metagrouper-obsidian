@@ -332,7 +332,7 @@ export class TreeToolbar {
     });
 
     const summary = details.createEl("summary");
-    summary.createSpan({ text: "Active Filters" });
+    summary.createSpan({ text: `Filters selected ${this.fileCount} files` });
 
     const content = details.createDiv({ cls: "tag-tree-filter-explanation-content" });
 
@@ -342,12 +342,6 @@ export class TreeToolbar {
     }
 
     const filters = this.currentViewConfig.filters;
-
-    // Show file count
-    content.createEl("div", {
-      text: `Files: ${this.fileCount}`,
-      cls: "tag-tree-filter-explanation-mode"
-    }).style.fontWeight = "600";
 
     // Show expression
     const expression = filters.expression?.trim() || "";
@@ -367,13 +361,19 @@ export class TreeToolbar {
 
     // Show each filter (only if showInToolbar is true and filter is enabled)
     const filtersListEl = content.createEl("ul");
-    filters.filters.forEach((labeledFilter) => {
-      if (labeledFilter.enabled === false) return;
-      if (labeledFilter.showInToolbar !== true) return; // Only show if explicitly set to true
+    const visibleFilters = filters.filters.filter(lf => lf.enabled !== false && lf.showInToolbar === true);
 
-      const filterText = `${labeledFilter.label}: ${this.getFilterDescription(labeledFilter.filter as any)}`;
-      filtersListEl.createEl("li", { text: filterText });
-    });
+    if (visibleFilters.length === 0) {
+      filtersListEl.createEl("li", {
+        text: "No filters selected for display (click eye icon in settings to show filters here)",
+        cls: "setting-item-description"
+      });
+    } else {
+      visibleFilters.forEach((labeledFilter) => {
+        const filterText = `${labeledFilter.label}: ${this.getFilterDescription(labeledFilter.filter as any)}`;
+        filtersListEl.createEl("li", { text: filterText });
+      });
+    }
   }
 
   /**
