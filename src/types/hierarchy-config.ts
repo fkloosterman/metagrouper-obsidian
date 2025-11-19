@@ -471,21 +471,19 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
   {
     name: "Projects by Status",
     filters: {
-      version: 1,
-      groups: [
+      version: 2,
+      filters: [
         {
-          id: "project-filter",
-          filters: [
-            {
-              id: "project-tag",
-              type: "tag",
-              tag: "project",
-              matchMode: "prefix",
-            },
-          ],
+          label: "A",
+          filter: {
+            id: "project-tag",
+            type: "tag",
+            tag: "project",
+            matchMode: "prefix",
+          },
         },
       ],
-      combineWithOr: false,
+      expression: "A",
     },
     levels: [
       {
@@ -519,21 +517,19 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
   {
     name: "Research by Topic and Year",
     filters: {
-      version: 1,
-      groups: [
+      version: 2,
+      filters: [
         {
-          id: "research-filter",
-          filters: [
-            {
-              id: "research-tag",
-              type: "tag",
-              tag: "research",
-              matchMode: "prefix",
-            },
-          ],
+          label: "A",
+          filter: {
+            id: "research-tag",
+            type: "tag",
+            tag: "research",
+            matchMode: "prefix",
+          },
         },
       ],
-      combineWithOr: false,
+      expression: "A",
     },
     levels: [
       {
@@ -568,21 +564,19 @@ export const EXAMPLE_HIERARCHY_CONFIGS: HierarchyConfig[] = [
   {
     name: "Tasks by Status and Project",
     filters: {
-      version: 1,
-      groups: [
+      version: 2,
+      filters: [
         {
-          id: "task-filter",
-          filters: [
-            {
-              id: "task-tag",
-              type: "tag",
-              tag: "task",
-              matchMode: "prefix",
-            },
-          ],
+          label: "A",
+          filter: {
+            id: "task-tag",
+            type: "tag",
+            tag: "task",
+            matchMode: "prefix",
+          },
         },
       ],
-      combineWithOr: false,
+      expression: "A",
     },
     levels: [
       {

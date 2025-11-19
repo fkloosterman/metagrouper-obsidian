@@ -561,9 +561,9 @@ class ViewEditorModal extends Modal {
       // Initialize filters if not present
       if (!this.workingView.filters) {
         this.workingView.filters = {
-          version: 1,
-          groups: [],
-          combineWithOr: true,
+          version: 2,
+          filters: [],
+          expression: "",
         };
       }
     } else {
@@ -573,9 +573,9 @@ class ViewEditorModal extends Modal {
         levels: [createTagLevel({ key: "" })],
         showPartialMatches: false,
         filters: {
-          version: 1,
-          groups: [],
-          combineWithOr: true,
+          version: 2,
+          filters: [],
+          expression: "",
         },
       });
     }

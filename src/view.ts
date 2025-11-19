@@ -357,9 +357,9 @@ export class TagTreeView extends ItemView {
         filterOverrides: {
           enabled: enabled,
           filters: {
-            version: 1,
-            groups: [],
-            combineWithOr: true,
+            version: 2,
+            filters: [],
+            expression: "",
           },
         },
       };
@@ -368,9 +368,9 @@ export class TagTreeView extends ItemView {
         viewState.filterOverrides = {
           enabled: enabled,
           filters: {
-            version: 1,
-            groups: [],
-            combineWithOr: true,
+            version: 2,
+            filters: [],
+            expression: "",
           },
         };
       } else {

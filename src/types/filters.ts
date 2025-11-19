@@ -7,16 +7,15 @@
 // ============================================================================
 
 export interface FilterConfig {
-  version: 1;
-  groups: FilterGroup[];
-  combineWithOr: boolean; // true = OR between groups, false = AND
+  version: 2;
+  filters: LabeledFilter[];    // Flat list of labeled filters
+  expression: string;           // Boolean expression, e.g., "(A & B) | (C & !D)"
 }
 
-export interface FilterGroup {
-  id: string;
-  name?: string;
-  filters: Filter[];
-  enabled?: boolean;
+export interface LabeledFilter {
+  label: string;                // Unique label: A, B, C, etc.
+  filter: Filter;               // The actual filter (tag, property, etc.)
+  enabled?: boolean;            // Can disable individual filters
 }
 
 // ============================================================================
