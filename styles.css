@@ -26,6 +26,7 @@
 .tag-tree-toolbar-header {
   display: flex;
   flex-direction: column;
+  align-items: center;
   padding: var(--size-4-2) var(--size-4-3);
   cursor: pointer;
   user-select: none;

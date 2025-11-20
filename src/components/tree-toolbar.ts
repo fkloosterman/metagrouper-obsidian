@@ -261,8 +261,10 @@ export class TreeToolbar {
       }
     }
 
-    // Filter explanation section (always show filter descriptions)
-    this.renderFilterExplanation(toolbar);
+    // Filter explanation section (always show when filters are configured)
+    if (this.currentViewConfig?.filters && this.currentViewConfig.filters.filters?.length > 0) {
+      this.renderFilterExplanation(toolbar);
+    }
   }
 
   /**
@@ -775,15 +777,20 @@ export class TreeToolbar {
     }
 
     const filters = this.currentViewConfig.filters;
+    const allFilters = filters.filters.filter(lf => lf.enabled !== false);
+    const interactiveFilters = allFilters.filter(lf => lf.showInToolbar === true);
+
+    // Show filter expression with highlighted quick filter labels
+    if (filters.expression || allFilters.length > 0) {
+      this.renderFilterExpression(content, interactiveFilters);
+    }
 
     // Show ALL filters (not just eye-selected ones) - no bullets, less indentation, larger font
     const filtersContainer = content.createEl("div");
     filtersContainer.style.marginTop = "var(--size-4-2)";
     filtersContainer.style.fontSize = "1.1em";
 
-    filters.filters.forEach((labeledFilter) => {
-      if (labeledFilter.enabled === false) return; // Skip disabled filters
-
+    allFilters.forEach((labeledFilter) => {
       const filterRow = filtersContainer.createEl("div");
       filterRow.style.marginBottom = "var(--size-2-2)";
 
