@@ -63,6 +63,18 @@
   flex: 1;
 }
 
+.tag-tree-toolbar-header-first-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--size-2-1);
+}
+
+.tag-tree-toolbar-header-second-line {
+  display: flex;
+  align-items: center;
+}
+
 .tag-tree-toolbar-title svg {
   width: var(--icon-size);
   height: var(--icon-size);
